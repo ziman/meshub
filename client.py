@@ -14,10 +14,7 @@ import datetime
 import subprocess
 import collections
 import configparser
-
 from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from cryptography.hazmat.backends import default_backend
 
 import protocol
 
