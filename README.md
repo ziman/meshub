@@ -20,7 +20,7 @@ A lightweight mesh VPN
 
 ### Hub
 
-```{bash}
+```bash
 $ ./hub.py [-a address=0.0.0.0] [-p port=3731]
 ```
 
@@ -31,7 +31,7 @@ $ ./hub.py [-a address=0.0.0.0] [-p port=3731]
 
 ### Client
 
-```{bash}
+```bash
 $ sudo ./client.py client.cfg
 ```
 
@@ -42,7 +42,7 @@ $ sudo ./client.py client.cfg
 
 ### Generate a PSK
 
-```{bash}
+```bash
 $ ./generate_fernet_key.py
 ```
 
