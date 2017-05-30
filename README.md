@@ -5,24 +5,18 @@ A lightweight mesh VPN
 ## Goals
 
 * mesh connectivity with O(n^2) client-to-client NAT-traversal edges
-
 * untrusted central node -- if it's compromised, it shouldn't affect confidentiality
   of other nodes' communications
-
 * unstable central node -- if it goes down, the network must keep working
 	* but new clients may not be able to join
-
 * no packet forwarding through nodes
-
 * clients are trusted and can impersonate each other
 	* (this may change in the future)
-
 * client-to-client edges encrypted using a PSK
 
 ## Dependencies
 
 * Python 3
-
 * [cryptography](https://pypi.python.org/pypi/cryptography)
 
 ## Protocol
