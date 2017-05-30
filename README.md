@@ -4,7 +4,7 @@ A lightweight mesh VPN
 
 ## Goals
 
-* mesh connectivity with O(n^2) client-to-client NAT-traversal edges
+* mesh connectivity with O(n²) client-to-client NAT-traversal edges
 * untrusted central node -- if it's compromised, it shouldn't affect confidentiality
   of other nodes' communications
 * unstable central node -- if it goes down, the network must keep working
@@ -24,7 +24,10 @@ A lightweight mesh VPN
 $ ./hub.py [-a address=0.0.0.0] [-p port=3731]
 ```
 
-No special privileges needed.
+* No special privileges needed.
+* Almost no functionality.
+* Not part of the network -- it just mediates NAT traversal.
+* Needs a public IP address.
 
 ### Client
 
@@ -32,21 +35,20 @@ No special privileges needed.
 $ sudo ./client.py client.cfg
 ```
 
-Requires root to create the TUN interface and set up routing.
+* Requires root to create the TUN interface and set up routing.
+* Advertises itself to all other clients via the hub.
+* Creates O(n²) mesh edges to all other clients.
+* Encrypts traffic using the provided PSK.
+
+### Generate a PSK
+
+```{bash}
+$ ./generate_fernet_key.py
+```
+
+Put it into the variable named `psk` in config section `encryption`.
 
 ## Dependencies
 
 * Python 3
 * [cryptography](https://pypi.python.org/pypi/cryptography)
-
-## Protocol
-
-### Hub
-
-* broadcasts everything it receives
-	* including IP address + port where it saw the packet come from
-
-### Clients
-
-* advertise themselves to everyone else using the hub
-* create O(n^2) mesh edges to other clients
