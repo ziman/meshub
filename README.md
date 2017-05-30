@@ -12,6 +12,8 @@ A lightweight mesh VPN
 * unstable central node -- if it goes down, the network must keep working
 	* but new clients may not be able to join
 
+* no packet forwarding through nodes
+
 * clients are trusted and can impersonate each other
 	* (this may change in the future)
 
