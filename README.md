@@ -44,9 +44,10 @@ $ sudo ./client.py client.cfg
 
 ```bash
 $ ./generate_fernet_key.py
+--your-key-in-urlsafe-base64--
 ```
 
-Put it into the variable named `psk` in config section `encryption`.
+Put the key into the variable named `psk` in config section `encryption`.
 
 ## Dependencies
 
