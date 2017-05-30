@@ -8,11 +8,31 @@ A lightweight mesh VPN
 * untrusted central node -- if it's compromised, it shouldn't affect confidentiality
   of other nodes' communications
 * unstable central node -- if it goes down, the network must keep working
-	* but new clients may not be able to join
+    * but new clients may not be able to join
 * no packet forwarding through nodes
 * clients are trusted and can impersonate each other
-	* (this may change in the future)
+    * (this may change in the future)
 * client-to-client edges encrypted using a PSK
+* (eventually) IPv6 *inside* the VPN
+    * almost working but I don't care enough just yet
+
+## Synopsis
+
+### Hub
+
+```{bash}
+$ ./hub.py [-a address=0.0.0.0] [-p port=3731]
+```
+
+No special privileges needed.
+
+### Client
+
+```{bash}
+$ sudo ./client.py client.cfg
+```
+
+Requires root to create the TUN interface and set up routing.
 
 ## Dependencies
 
