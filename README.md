@@ -13,6 +13,7 @@ A lightweight mesh VPN
 * clients are trusted and can impersonate each other
     * (this may change in the future)
 * client-to-client edges encrypted using a PSK
+    * would be nice to have an assymetric system with a CA
 * (eventually) IPv6 *inside* the VPN
     * almost working but I don't care enough just yet
 
