@@ -38,7 +38,7 @@ $ sudo ./client.py client.cfg
 
 * Requires root to create the TUN interface and set up routing.
 * Advertises itself to all other clients via the hub.
-* Creates O(n²) mesh edges to all other clients.
+* Creates direct mesh edges to all other clients.
 * Encrypts traffic using the provided PSK.
 
 ### Generate a PSK
