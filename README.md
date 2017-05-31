@@ -50,6 +50,16 @@ $ ./generate_fernet_key.py
 
 Put the key into the variable named `psk` in config section `encryption`.
 
+## Related projects
+
+* [tinc](https://tinc-vpn.org/)
+	* won't work when the central node goes down (v1.0 at least)
+* [peervpn](https://peervpn.net/)
+	* my choice until recently, very easy to configure and get running
+	* requires PSK to be present in cleartext on the hub node
+* [freelan](https://freelan.org/)
+	* does not seem to create everyone-to-everyone mesh automatically
+
 ## Dependencies
 
 * Python 3
