@@ -50,6 +50,10 @@ $ ./generate_fernet_key.py
 
 Put the key into the variable named `psk` in config section `encryption`.
 
+## License
+
+[MIT](https://github.com/ziman/meshub/blob/master/LICENSE).
+
 ## Related projects
 
 Other mesh VPNs worth checking out:
