@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import time
 import fcntl
 import base64
 import socket
@@ -241,25 +242,6 @@ class Client:
 
         self.maintenance_interval_sec = config['vpn'].getfloat('maintenance_interval_sec', 10)
 
-        self.setup_tun()
-
-    def setup_tun(self):
-        script = self.config['scripts'].get('tun-up', fallback=None)
-        if script:
-            hostname = self.config['vpn']['hostname']
-            address, prefix_length = get_address(self.config)
-
-            subprocess.check_call(
-                script,
-                shell=True,
-                env={
-                    'hostname': hostname,
-                    'iface': self.tun.ifname,
-                    'addr': address,
-                    'prefixlen': str(prefix_length),
-                }
-            )
-
     def advertise(self):
         protocol.sendto(self.sock, self.peer_hub, protocol.PACKET_C2H)
 
@@ -360,9 +342,36 @@ class Client:
                 self.ts_last_maintenance = now
                 self.maintenance()
 
+def setup_tun(config):
+    tun_name = config['tun'].get('interface', fallback='tun%d')
+    tun = Tun(
+        name=tun_name,
+        tap=False,
+    )
+
+    script = config['scripts'].get('tun-up', fallback=None)
+    if script:
+        hostname = config['vpn']['hostname']
+        address, prefix_length = get_address(config)
+
+        subprocess.check_call(
+            script,
+            shell=True,
+            env={
+                'hostname': hostname,
+                'iface': tun.ifname,
+                'addr': address,
+                'prefixlen': str(prefix_length),
+            }
+        )
+
+    return tun
+
 def main(args):
     config = configparser.ConfigParser()
     config.read(args.config)
+
+    tun = setup_tun(config)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((
@@ -370,19 +379,23 @@ def main(args):
         config['socket'].getint('port', fallback=3731),
     ))
 
-    tun_name = config['tun'].get('interface', fallback='tun%d')
-    tun = Tun(
-        name=tun_name,
-        tap=False,
-    )
-
-    peer_hub = (
+    hub = (
         config['hub'].get('address'),
         config['hub'].getint('port'),
     )
 
     try:
-        Client(config, sock, tun, peer_hub).main_loop()
+        # restart the VPN after network outages etc.
+        while True:
+            try:
+                client = Client(config, sock, tun, hub)
+                client.main_loop()
+            except OSError:
+                # log error and restart the client
+                log.exception("client died, restarting")
+
+            log.info('sleeping before the next attempt...')
+            time.sleep(config['vpn'].getfloat('restart_delay_sec', fallback=30))
     finally:
         tun.close()
         sock.close()
