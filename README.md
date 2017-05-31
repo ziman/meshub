@@ -9,6 +9,8 @@ A lightweight full-mesh VPN
 	* if it's compromised, it shouldn't affect confidentiality of other nodes' communications
 	* if it goes down, the network must keep working (but new clients may not be able to join)
 * no packet forwarding through nodes
+	* there are only direct peer-to-peer connections
+	* of course, OS-level routing always works
 * client-to-client edges encrypted using a PSK
 	* clients are trusted and can impersonate each other
     * it would be nice to have an assymetric system with a CA that would fix this
