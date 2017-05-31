@@ -52,15 +52,16 @@ Put the key into the variable named `psk` in config section `encryption`.
 
 ## Related projects
 
-Other mesh VPNs worth checking out.
-
+Other mesh VPNs worth checking out:
 * [peervpn](https://peervpn.net/)
 	* my choice until recently, very easy to configure and get running
 	* requires PSK to be present in cleartext on the hub node
 * [tinc](https://tinc-vpn.org/)
+	* assymetric crypto
 	* won't work when the central node goes down (v1.0 at least)
-	* there's v1.1 but I haven't migrated
+	* there's v1.1 but I haven't tried it
 * [freelan](https://freelan.org/)
+	* PSK or CA
 	* does not seem to create everyone-to-everyone mesh automatically
 
 ## Dependencies
