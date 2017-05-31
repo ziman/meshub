@@ -135,7 +135,9 @@ class Host:
 
         elif packet.magic == protocol.PACKET_C2C_DATA:
             if self.state != Host.STATE_CONNECTED:
-                log.warn('data packet from non-connected host: %s:%d' % packet.peer)
+                log.info('data packet from non-connected host: %s:%d' % packet.peer)
+                log.info('attempting connection refresh')
+                self.send_auth_packet()
                 return
 
             try:
