@@ -52,6 +52,8 @@ Put the key into the variable named `psk` in config section `encryption`.
 
 ## Related projects
 
+Other mesh VPNs worth checking out.
+
 * [peervpn](https://peervpn.net/)
 	* my choice until recently, very easy to configure and get running
 	* requires PSK to be present in cleartext on the hub node
