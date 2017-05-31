@@ -1,19 +1,17 @@
 # meshub
 
-A lightweight mesh VPN
+A lightweight full-mesh VPN
 
 ## Goals
 
-* mesh connectivity with O(n²) client-to-client NAT-traversal edges
-* untrusted central node -- if it's compromised, it shouldn't affect confidentiality
-  of other nodes' communications
-* unstable central node -- if it goes down, the network must keep working
-    * but new clients may not be able to join
+* mesh connectivity with O(n²) direct client-to-client NAT-traversal edges
+* untrusted and unstable central node
+	* if it's compromised, it shouldn't affect confidentiality of other nodes' communications
+	* if it goes down, the network must keep working (but new clients may not be able to join)
 * no packet forwarding through nodes
-* clients are trusted and can impersonate each other
-    * (this may change in the future)
 * client-to-client edges encrypted using a PSK
-    * would be nice to have an assymetric system with a CA
+	* clients are trusted and can impersonate each other
+    * it would be nice to have an assymetric system with a CA that would fix this
 * (eventually) IPv6 *inside* the VPN
     * almost working but I don't care enough just yet
 
