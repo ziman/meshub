@@ -54,3 +54,7 @@ Put the key into the variable named `psk` in config section `encryption`.
 
 * Python 3
 * [cryptography](https://pypi.python.org/pypi/cryptography)
+
+## Wishlist
+
+* a status command that would print all edges and their detailed diagnostics
