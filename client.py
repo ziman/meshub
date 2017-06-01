@@ -95,6 +95,8 @@ class Host:
         self.ts_last_packet = datetime.datetime.now()
 
     def process_advertisement(self):
+        self.log.debug('state = %s' % self.state)
+        self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
         self.iteration()  # will make sure everything is taken care of
@@ -285,7 +287,6 @@ class Client:
     def process_packet(self, packet):
         if packet.magic == protocol.PACKET_H2C:
             peer = (packet.payload.src_addr, packet.payload.src_port)
-            log.debug('advertisement: %s:%d' % peer)
             host = self.get_host(peer)
             host.process_advertisement()
 
