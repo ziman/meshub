@@ -27,8 +27,11 @@ IFF_NO_PI = 0x1000
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
-def get_address(config):
-    address_s = config['tun']['address']
+def get_address(config, proto):
+    address_s = config['tun'].get(proto + '_address')
+    if not address_s:
+        return None, None
+
     address, prefix_length_s = address_s.split('/')
     prefix_length = int(prefix_length_s)
 
@@ -79,7 +82,8 @@ class Host:
             raise Exception('unknown encryption scheme: %s' % enc_scheme)
 
         self.name = None
-        self.address = None
+        self.ipv4_address = None  # bytes, not string
+        self.ipv6_address = None  # bytes, not string
         self.rnode = None  # routing node
 
         self.log = logging.getLogger(str(self))
@@ -122,11 +126,13 @@ class Host:
             doc = json.loads(plaintext.decode('ascii'))
 
             self.name = doc['hostname']
-            self.address = doc['address']
+            self.ipv4_address = inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
+            self.ipv6_address = inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
             
             # we know other party's details, switch to STATE_CONNECTED
             self.state = Host.STATE_CONNECTED
-            self.routes[self.address] = self
+            self.routes[self.ipv4_address] = self
+            self.routes[self.ipv6_address] = self
             self.log = logging.getLogger(str(self))
             self.log.info('connected!')
 
@@ -177,11 +183,16 @@ class Host:
         self.log.debug('sending AUTH in state: ' + self.state)
 
         hostname = self.config['vpn']['hostname']
-        address, _prefix_length = get_address(self.config)
+        ipv4_address, _prefix_length = get_address(self.config, 'ipv4')
+        ipv6_address, _prefix_length = get_address(self.config, 'ipv6')
 
         payload = json.dumps({
+            'version': protocol.VERSION,
             'hostname': hostname,
-            'address': address,
+            'address': {
+                'ipv4': ipv4_address,
+                'ipv6': ipv6_address,
+            },
             'ack': (self.state == Host.STATE_CONNECTED),
         }).encode('ascii')
 
@@ -203,8 +214,10 @@ class Host:
 
     def close_connection(self):
         self.log.info("closing connection %s:%d" % self.peer)
-        if self.address is not None:
-            del self.routes[self.address]
+        if self.ipv4_address is not None:
+            del self.routes[self.ipv4_address]
+        if self.ipv6_address is not None:
+            del self.routes[self.ipv6_address]
 
 class Tun(object):
     def __init__(self, name='tun', tap=False):
@@ -235,7 +248,7 @@ class Client:
         self.sock    = sock
         self.peer_hub = peer_hub
         self.hosts_by_peer = dict()  # peer -> Host
-        self.routes = dict()  # vpn address -> Host
+        self.routes = dict()  # vpn address (ipv4 or ipv6) -> Host
         self.tun = tun
         self.ts_last_advert = datetime.datetime.now()
         self.ts_last_maintenance = datetime.datetime.now()
@@ -298,9 +311,9 @@ class Client:
 
         version = (packet[0] >> 4) & 0x0F;
         if version == 4:
-            addr_dst = socket.inet_ntop(socket.AF_INET, packet[16:20])
+            addr_dst = packet[16:20]
         elif version == 6:
-            addr_dst = socket.inet_ntop(socket.AF_INET6, packet[24:40])
+            addr_dst = packet[24:40]
         else:
             log.warn('unknown IP version: 0x%02x' % version)
             return
@@ -349,10 +362,37 @@ def setup_tun(config):
         tap=False,
     )
 
-    script = config['scripts'].get('tun-up', fallback=None)
+    hostname = config['vpn']['hostname']
+
+    script = config['scripts'].get('tun_setup')
     if script:
-        hostname = config['vpn']['hostname']
-        address, prefix_length = get_address(config)
+        subprocess.check_call(
+            script,
+            shell=True,
+            env={
+                'hostname': hostname,
+                'iface': tun.ifname,
+            }
+        )
+
+    script = config['scripts'].get('tun_setup_ipv4')
+    if script:
+        address, prefix_length = get_address(config, 'ipv4')
+
+        subprocess.check_call(
+            script,
+            shell=True,
+            env={
+                'hostname': hostname,
+                'iface': tun.ifname,
+                'addr': address,
+                'prefixlen': str(prefix_length),
+            }
+        )
+
+    script = config['scripts'].get('tun_setup_ipv6')
+    if script:
+        address, prefix_length = get_address(config, 'ipv6')
 
         subprocess.check_call(
             script,

@@ -2,6 +2,8 @@ import struct
 import socket
 import collections
 
+VERSION = 1
+
 MAX_PACKET_SIZE = 8192
 
 PACKET_C2H      = 0x01
