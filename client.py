@@ -125,6 +125,15 @@ class Host:
 
             doc = json.loads(plaintext.decode('ascii'))
 
+            proto_version = doc.get('version', 0)
+            if proto_version != protocol.VERSION:
+                log.warn('rejecting AUTH: wrong proto version from %s (got %d, expected %d)' % (
+                    doc.get('hostname', str(self)),
+                    proto_version,
+                    protocol.VERSION,
+                ))
+                return
+
             self.name = doc['hostname']
             self.ipv4_address = socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
             self.ipv6_address = socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
