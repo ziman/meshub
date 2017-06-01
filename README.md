@@ -5,6 +5,7 @@ A lightweight full-mesh VPN
 ## Goals
 
 * mesh connectivity with O(n²) direct client-to-client NAT-traversal edges
+* IPv6 *inside* the VPN
 * untrusted and unstable central node
 	* if it's compromised, it shouldn't affect confidentiality of other nodes' communications
 	* if it goes down, the network must keep working (but new clients may not be able to join)
@@ -14,8 +15,6 @@ A lightweight full-mesh VPN
 * client-to-client edges encrypted using a PSK
 	* clients are trusted and can impersonate each other
     * it would be nice to have an assymetric system with a CA that would fix this
-* (eventually) IPv6 *inside* the VPN
-    * almost working but I don't care enough just yet
 
 ## Synopsis
 
@@ -73,8 +72,11 @@ Other mesh VPNs worth checking out:
 
 [MIT](https://github.com/ziman/meshub/blob/master/LICENSE).
 
-## Wishlist
+## Wishlist/TODO
 
+* assymetric crypto
 * a status command that would print all edges and their detailed diagnostics
+    * generally a RPC
 * ICMP inside VPN
-* make ipv6 work properly
+    * for unroutable hosts etc.
+* log level config option
