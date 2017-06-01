@@ -80,3 +80,4 @@ Other mesh VPNs worth checking out:
 * ICMP inside VPN
     * for unroutable hosts etc.
 * log level config option
+* make hub listen on multiple addresses (and send responses to all of them)
