@@ -126,8 +126,8 @@ class Host:
             doc = json.loads(plaintext.decode('ascii'))
 
             self.name = doc['hostname']
-            self.ipv4_address = inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
-            self.ipv6_address = inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
+            self.ipv4_address = socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
+            self.ipv6_address = socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
             
             # we know other party's details, switch to STATE_CONNECTED
             self.state = Host.STATE_CONNECTED
