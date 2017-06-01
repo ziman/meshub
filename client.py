@@ -284,7 +284,9 @@ class Client:
 
     def process_packet(self, packet):
         if packet.magic == protocol.PACKET_H2C:
-            host = self.get_host((packet.payload.src_addr, packet.payload.src_port))
+            peer = (packet.payload.src_addr, packet.payload.src_port)
+            log.debug('advertisement: %s:%d' % peer)
+            host = self.get_host(peer)
             host.process_advertisement()
 
         else:
