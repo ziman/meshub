@@ -232,10 +232,14 @@ class Host:
 
 class Tun(object):
     def __init__(self, name='tun', tap=False):
-        mode = IFF_TAP if tap else IFF_TUN
-        self.fd = os.open("/dev/net/tun", os.O_RDWR)
-        ifs = fcntl.ioctl(self.fd, TUNSETIFF, struct.pack("16sH", name.encode('ascii'), mode | IFF_NO_PI))
-        self.ifname = ifs[:16].strip(b"\x00").decode('ascii')
+        if name.startswith('/'):
+            self.fd = os.open(name, os.O_RDWR)
+            self.ifname = name.split('/')[-1]
+        else:
+            mode = IFF_TAP if tap else IFF_TUN
+            self.fd = os.open("/dev/net/tun", os.O_RDWR)
+            ifs = fcntl.ioctl(self.fd, TUNSETIFF, struct.pack("16sH", name.encode('ascii'), mode | IFF_NO_PI))
+            self.ifname = ifs[:16].strip(b"\x00").decode('ascii')
 
         log.debug("tun interface %s created" % self.ifname)
 
