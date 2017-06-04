@@ -81,3 +81,5 @@ Other mesh VPNs worth checking out:
     * for unroutable hosts etc.
 * log level config option
 * make hub listen on multiple addresses (and send responses to all of them)
+* OSX support
+* drop privileges after opening sockets & ifaces
