@@ -337,7 +337,7 @@ class Client:
             return
         
         host = self.routes.get(addr_dst)
-        log.debug('routing packet for %s to %s' % (addr_s, host))
+        #log.debug('routing packet for %s to %s' % (addr_s, host))
         if host:
             host.send_data_packet(packet)
 
