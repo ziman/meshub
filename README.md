@@ -15,6 +15,8 @@ A lightweight full-mesh VPN
 * client-to-client edges encrypted using a PSK
 	* clients are trusted and can impersonate each other
     * it would be nice to have an assymetric system with a CA that would fix this
+* Linux & OS X support
+	* OSX needs [the tuntap driver](http://tuntaposx.sourceforge.net/)
 
 ## Synopsis
 
@@ -81,5 +83,4 @@ Other mesh VPNs worth checking out:
     * for unroutable hosts etc.
 * log level config option
 * make hub listen on multiple addresses (and send responses to all of them)
-* OSX support
 * drop privileges after opening sockets & ifaces
