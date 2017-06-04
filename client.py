@@ -328,13 +328,16 @@ class Client:
         version = (packet[0] >> 4) & 0x0F;
         if version == 4:
             addr_dst = packet[16:20]
+            addr_s = inet_ntop(socket.ADDR_INET, addr_dst)
         elif version == 6:
             addr_dst = packet[24:40]
+            addr_s = inet_ntop(socket.ADDR_INET6, addr_dst)
         else:
             log.warn('unknown IP version: 0x%02x' % version)
             return
-
+        
         host = self.routes.get(addr_dst)
+        log.debug('routing packet for %s to %s' % (addr_s, host))
         if host:
             host.send_data_packet(packet)
 
