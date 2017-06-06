@@ -225,9 +225,9 @@ class Host:
 
     def close_connection(self):
         self.log.info("closing connection %s:%d" % self.peer)
-        if self.ipv4_address is not None:
+        if self.ipv4_address in self.routes:
             del self.routes[self.ipv4_address]
-        if self.ipv6_address is not None:
+        if self.ipv6_address in self.routes:
             del self.routes[self.ipv6_address]
 
 class Tun(object):
