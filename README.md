@@ -84,3 +84,5 @@ Other mesh VPNs worth checking out:
 * log level config option
 * make hub listen on multiple addresses (and send responses to all of them)
 * drop privileges after opening sockets & ifaces
+* a performant (but secure) symmetric encryption
+    * currently using `Fernet` from `cryptography` which should be foolproof but it's not very fast
