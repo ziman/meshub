@@ -6,10 +6,11 @@ A lightweight full-mesh VPN
 
 * mesh connectivity with O(n²) direct client-to-client NAT-traversal edges
 * IPv6 *inside* the VPN
-* untrusted and unstable central node
-	* if it's compromised, it shouldn't affect confidentiality of other nodes' communications
+* untrusted and unstable central hub
+	* assumed to be in the cloud, on someone else's computer, etc.
+	* complete exposure should not affect confidentiality of other nodes' communications
 	* if it goes down, the network must keep working (but new clients may not be able to join)
-* no packet forwarding through nodes
+* no packet forwarding through hub or nodes
 	* there are only direct peer-to-peer connections
 	* of course, OS-level routing always works
 * client-to-client edges encrypted using a PSK
