@@ -65,41 +65,44 @@ def to_bytes(magic, packet):
         raise MalformedPacket('unknown tx magic: 0x%02x' % magic)
 
 def receive(sock):
-    data, peer = sock.recvfrom(MAX_PACKET_SIZE)
-    magic, data = data[0], data[1:]
+    try:
+        data, peer = sock.recvfrom(MAX_PACKET_SIZE)
+        magic, data = data[0], data[1:]
 
-    if magic == PACKET_C2H:
-        protocol_version = data[0]
-        session_id, = struct.unpack('>L', data[1:5])
-        payload = Packet_c2h(protocol_version, session_id)
+        if magic == PACKET_C2H:
+            protocol_version = data[0]
+            session_id, = struct.unpack('>L', data[1:5])
+            payload = Packet_c2h(protocol_version, session_id)
 
-    elif magic == PACKET_H2C:
-        src_addr = socket.inet_ntoa(data[:4])
-        src_port, = struct.unpack('>H', data[4:6])
-        protocol_version = data[6]
-        session_id, = struct.unpack('>L', data[7:11])
-        payload = Packet_h2c(src_addr, src_port, protocol_version, session_id)
+        elif magic == PACKET_H2C:
+            src_addr = socket.inet_ntoa(data[:4])
+            src_port, = struct.unpack('>H', data[4:6])
+            protocol_version = data[6]
+            session_id, = struct.unpack('>L', data[7:11])
+            payload = Packet_h2c(src_addr, src_port, protocol_version, session_id)
 
-    elif magic == PACKET_C2C_PING:
-        payload = Packet_ping(payload=data)
+        elif magic == PACKET_C2C_PING:
+            payload = Packet_ping(payload=data)
 
-    elif magic == PACKET_C2C_PONG:
-        payload = None
+        elif magic == PACKET_C2C_PONG:
+            payload = None
 
-    elif magic == PACKET_C2C_AUTH:
-        payload = Packet_auth_enc(payload_enc=data)
+        elif magic == PACKET_C2C_AUTH:
+            payload = Packet_auth_enc(payload_enc=data)
 
-    elif magic == PACKET_C2C_DATA:
-        payload = Packet_data_enc(payload_enc=data)
+        elif magic == PACKET_C2C_DATA:
+            payload = Packet_data_enc(payload_enc=data)
 
-    else:
-        raise MalformedPacket('unknown magic: 0x%02x' % magic)
+        else:
+            raise MalformedPacket('unknown magic: 0x%02x' % magic)
 
-    return Packet_rx(
-        peer=peer,
-        magic=magic,
-        payload=payload,
-    )
+        return Packet_rx(
+            peer=peer,
+            magic=magic,
+            payload=payload,
+        )
+    except IndexError as e:
+        raise MalformedPacket(str(e))
 
 def sendto(sock, peer, magic, packet=None):
     sock.sendto(
