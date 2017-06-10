@@ -2,7 +2,7 @@
 
 A lightweight full-mesh VPN
 
-## Features / Philosophy
+## Features / Design
 
 * mesh connectivity with O(n²) direct client-to-client NAT-traversal edges
 * IPv6 *inside* the VPN
