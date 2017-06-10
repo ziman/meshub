@@ -98,16 +98,16 @@ class Host:
         self.ts_last_packet = datetime.datetime.now()
 
     def process_advertisement(self, packet_payload):
-        self.log.debug('state = %s' % self.state)
-        self.log.debug('advertisement from %s:%d' % self.peer)
+        #self.log.debug('state = %s' % self.state)
+        #self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
         if packet_payload.session_id != self.session_id:
-            self.log.debug('sending auth packet...')
+            self.log.debug('connection needs refreshing, sending auth packet...')
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
         else:
-            self.log.debug('just iterating')
+            #self.log.debug('just iterating')
             # either already connected or a re-try of initial connection
             # just make sure everything is taken care of
             self.iteration()
@@ -116,7 +116,7 @@ class Host:
         self.seen_packet()
 
         if packet.magic == protocol.PACKET_C2C_PING:
-            self.log.debug('PING received')
+            #self.log.debug('PING received')
 
             self.send_packet(protocol.PACKET_C2C_PONG)
 
@@ -174,8 +174,7 @@ class Host:
 
         elif packet.magic == protocol.PACKET_C2C_DATA:
             if self.state != Host.STATE_CONNECTED:
-                log.info('data packet from non-connected host: %s:%d' % packet.peer)
-                log.info('attempting connection refresh')
+                log.info('data packet from non-connected host %s:%d, refreshing connection' % packet.peer)
                 self.send_auth_packet()
                 return
 
@@ -188,7 +187,7 @@ class Host:
             self.tun.write(plaintext)
 
         elif packet.magic == protocol.PACKET_C2H:
-            log.debug('LAN broadcast received from %s', packet.peer)
+            #log.debug('LAN broadcast received from %s', packet.peer)
             self.process_advertisement(packet.payload)
 
         else:
