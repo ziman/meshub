@@ -9,6 +9,7 @@ import base64
 import socket
 import struct
 import select
+import random
 import logging
 import argparse
 import datetime
@@ -60,8 +61,9 @@ class Host:
     STATE_AUTH      = 'AUTH'
     STATE_CONNECTED = 'CONN'
 
-    def __init__(self, config, sock, tun, routes, peer):
+    def __init__(self, client, config, sock, tun, routes, peer):
         self.config = config
+        self.client = client
         self.sock = sock
         self.tun = tun
         self.routes = routes
@@ -85,6 +87,7 @@ class Host:
         self.ipv4_address = None  # bytes, not string
         self.ipv6_address = None  # bytes, not string
         self.rnode = None  # routing node
+        self.session_id = None  # remote host's session id
 
         self.log = logging.getLogger(str(self))
 
@@ -99,8 +102,8 @@ class Host:
         self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
-        if packet.starting_up:
-            # remote host is starting up, needs active connection re-establishment
+        if packet.session_id != self.session_id:
+            # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
         else:
             # either already connected or a re-try of initial connection
@@ -145,6 +148,7 @@ class Host:
             self.name = doc['hostname']
             self.ipv4_address = socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
             self.ipv6_address = socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
+            self.session_id = doc['session_id']
             
             # we know other party's details, switch to STATE_CONNECTED
             self.state = Host.STATE_CONNECTED
@@ -211,6 +215,7 @@ class Host:
                 'ipv6': ipv6_address,
             },
             'ack': (self.state == Host.STATE_CONNECTED),
+            'session_id': self.client.session_id,
         }).encode('ascii')
 
         self.send_encrypted_packet(protocol.PACKET_C2C_AUTH, payload)
@@ -273,6 +278,7 @@ class Client:
         self.tun = tun
         self.ts_last_advert = datetime.datetime.now()
         self.ts_last_maintenance = datetime.datetime.now()
+        self.session_id = random.getrandbits(32)
 
         self.maintenance_interval_sec = config['vpn'].getfloat('maintenance_interval_sec', 10)
 
@@ -281,7 +287,10 @@ class Client:
             self.sock,
             self.peer_hub,
             protocol.PACKET_C2H,
-            protocol.Packet_c2h(starting_up=starting_up),
+            protocol.Packet_c2h(
+                protocol_version=protocol.VERSION,
+                session_id=self.client.session_id
+            ),
         )
 
     def advertise_if_needed(self):
@@ -294,7 +303,7 @@ class Client:
         host = self.hosts_by_peer.get(peer)
 
         if host is None:
-            host = Host(self.config, self.sock, self.tun, self.routes, peer)
+            host = Host(self, self.config, self.sock, self.tun, self.routes, peer)
             self.hosts_by_peer[peer] = host
 
         return host
@@ -359,7 +368,7 @@ class Client:
 
         # first, advertise ourselves
         for _ in range(2):
-            self.advertise(starting_up=True)
+            self.advertise()
 
         while True:
             rs, ws, xs = select.select(

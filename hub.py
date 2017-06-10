@@ -17,12 +17,14 @@ HOST_ADVERT_TIMEOUT_SEC = 60
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
-def broadcast_peer(sock, src_peer, hosts):
+def broadcast_peer(sock, src_peer, packet, hosts):
     log.debug('broadcasting: %s:%d' % src_peer)
 
     data = protocol.to_bytes(protocol.PACKET_H2C, protocol.Packet_h2c(
         src_addr=src_peer[0],
         src_port=src_peer[1],
+        packet.protocol_version,
+        packet.session_id,
     ))
 
     # make a copy because iteration may delete stale entries
@@ -53,7 +55,7 @@ def main_loop(args, sock):
             continue
 
         hosts[packet.peer] = datetime.datetime.now()
-        broadcast_peer(sock, packet.peer, hosts)
+        broadcast_peer(sock, packet.peer, packet.payload, hosts)
 
 def main(args):
     log.info('starting server at [%s]:%s' % (args.addr, args.port))
