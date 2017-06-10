@@ -94,12 +94,18 @@ class Host:
     def seen_packet(self):
         self.ts_last_packet = datetime.datetime.now()
 
-    def process_advertisement(self):
+    def process_advertisement(self, packet):
         self.log.debug('state = %s' % self.state)
         self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
-        self.iteration()  # will make sure everything is taken care of
+        if packet.starting_up:
+            # remote host is starting up, needs active connection re-establishment
+            self.send_auth_packet()
+        else:
+            # either already connected or a re-try of initial connection
+            # just make sure everything is taken care of
+            self.iteration()
 
     def process_packet(self, packet):
         self.seen_packet()
@@ -270,8 +276,13 @@ class Client:
 
         self.maintenance_interval_sec = config['vpn'].getfloat('maintenance_interval_sec', 10)
 
-    def advertise(self):
-        protocol.sendto(self.sock, self.peer_hub, protocol.PACKET_C2H)
+    def advertise(self, starting_up=False):
+        protocol.sendto(
+            self.sock,
+            self.peer_hub,
+            protocol.PACKET_C2H,
+            protocol.Packet_c2h(starting_up=starting_up),
+        )
 
     def advertise_if_needed(self):
         interval = self.config['hub'].getfloat('advert_interval_sec', fallback=30)
@@ -292,7 +303,7 @@ class Client:
         if packet.magic == protocol.PACKET_H2C:
             peer = (packet.payload.src_addr, packet.payload.src_port)
             host = self.get_host(peer)
-            host.process_advertisement()
+            host.process_advertisement(packet)
 
         else:
             host = self.get_host(packet.peer)
@@ -348,7 +359,7 @@ class Client:
 
         # first, advertise ourselves
         for _ in range(2):
-            self.advertise()
+            self.advertise(starting_up=True)
 
         while True:
             rs, ws, xs = select.select(

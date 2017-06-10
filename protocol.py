@@ -14,7 +14,8 @@ PACKET_C2C_AUTH = 0x06
 PACKET_C2C_DATA = 0x08
 
 Packet_rx = collections.namedtuple('Packet_rx', 'peer magic payload')
-Packet_h2c = collections.namedtuple('Packet_h2c', 'src_addr src_port')
+Packet_h2c = collections.namedtuple('Packet_h2c', 'src_addr src_port starting_up')
+Packet_c2h = collections.namedtuple('Packet_c2h', 'starting_up')
 Packet_ping = collections.namedtuple('Packet_ping', 'payload')
 Packet_auth_enc = collections.namedtuple('Packet_auth_enc', 'payload_enc')
 Packet_data_enc = collections.namedtuple('Packet_data_enc', 'payload_enc')
@@ -31,13 +32,16 @@ def _read_c_string(bs):
 
 def to_bytes(magic, packet):
     if magic == PACKET_C2H:
-        return bytes([magic]);
+        return \
+            bytes([magic]) \
+            + [int(packet.starting_up)]
 
     elif magic == PACKET_H2C:
         return \
             bytes([magic]) \
             + socket.inet_aton(packet.src_addr) \
             + struct.pack('>H', packet.src_port) \
+            + [int(packet.starting_up)]
 
     elif magic == PACKET_C2C_PING:
         return \
@@ -68,7 +72,7 @@ def receive(sock):
         magic, data = data[0], data[1:]
 
     if magic == PACKET_C2H:
-        payload = None
+        payload = Packet_c2h(starting_up=bool(data[0]))
 
     elif magic == PACKET_H2C:
         if len(data) != 6:
@@ -76,7 +80,8 @@ def receive(sock):
 
         src_addr = socket.inet_ntoa(data[:4])
         src_port, = struct.unpack('>H', data[4:])
-        payload = Packet_h2c(src_addr, src_port)
+        starting_up = bool(data[6])
+        payload = Packet_h2c(src_addr, src_port, starting_up)
 
     elif magic == PACKET_C2C_PING:
         payload = Packet_ping(payload=data)
