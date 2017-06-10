@@ -102,7 +102,7 @@ class Host:
         self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
-        if packet.session_id != self.session_id:
+        if packet.payload.session_id != self.session_id:
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
         else:
@@ -146,19 +146,27 @@ class Host:
                 return
 
             self.name = doc['hostname']
-            self.ipv4_address = socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
-            self.ipv6_address = socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
-            self.session_id = doc['session_id']
-            
-            # we know other party's details, switch to STATE_CONNECTED
-            self.state = Host.STATE_CONNECTED
-            self.routes[self.ipv4_address] = self
-            self.routes[self.ipv6_address] = self
-            self.log = logging.getLogger(str(self))
-            self.log.info('connected!')
+            self.ipv4_address = doc['address'].get('ipv4') \
+                    and socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
+            self.ipv6_address = doc['address'].get('ipv6') \
+                    and socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
 
-            # the other node does not know our details, resend them
-            if not doc['ack']:
+            if (self.state != Host.STATE_CONNECTED) or (doc['session_id'] != self.session_id):
+                # other party's details updated, switch to STATE_CONNECTED
+                self.state = Host.STATE_CONNECTED
+                self.session_id = doc['session_id']
+            
+                if self.ipv4_address:
+                    self.routes[self.ipv4_address] = self
+
+                if self.ipv6_address:
+                    self.routes[self.ipv6_address] = self
+
+                self.log = logging.getLogger(str(self))
+                self.log.info('connected!')
+
+            if doc['expected_session_id'] != self.client.session_id:
+                # remote host does not seem to have up-to-date info about us
                 self.send_auth_packet()
 
         elif packet.magic == protocol.PACKET_C2C_DATA:
@@ -214,7 +222,7 @@ class Host:
                 'ipv4': ipv4_address,
                 'ipv6': ipv6_address,
             },
-            'ack': (self.state == Host.STATE_CONNECTED),
+            'expected_session_id': self.session_id,
             'session_id': self.client.session_id,
         }).encode('ascii')
 

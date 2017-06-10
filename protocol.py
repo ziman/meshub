@@ -66,11 +66,7 @@ def to_bytes(magic, packet):
 
 def receive(sock):
     data, peer = sock.recvfrom(MAX_PACKET_SIZE)
-
-    if len(data) == 0:
-        raise MalformedPacket('empty packet')
-    else:
-        magic, data = data[0], data[1:]
+    magic, data = data[0], data[1:]
 
     if magic == PACKET_C2H:
         protocol_version = data[0]
@@ -78,11 +74,8 @@ def receive(sock):
         payload = Packet_c2h(protocol_version, session_id)
 
     elif magic == PACKET_H2C:
-        if len(data) != 6:
-            raise MalformedPacket('wrong size of h2c_ip4 packet: %d' % len(data))
-
         src_addr = socket.inet_ntoa(data[:4])
-        src_port, = struct.unpack('>H', data[4:])
+        src_port, = struct.unpack('>H', data[4:6])
         protocol_version = data[6]
         session_id, = struct.unpack('>L', data[7:11])
         payload = Packet_h2c(src_addr, src_port, protocol_version, session_id)
