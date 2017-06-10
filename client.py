@@ -103,9 +103,11 @@ class Host:
         self.seen_packet()
 
         if packet_payload.session_id != self.session_id:
+            self.log.debug('sending auth packet...')
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
         else:
+            self.log.debug('just iterating')
             # either already connected or a re-try of initial connection
             # just make sure everything is taken care of
             self.iteration()
@@ -214,7 +216,7 @@ class Host:
         self.send_encrypted_packet(protocol.PACKET_C2C_DATA, data)
 
     def send_auth_packet(self):
-        self.log.debug('sending AUTH in state: ' + self.state)
+        self.log.debug('sending AUTH in state %s to peer %s', self.state, self.peer)
 
         hostname = self.config['vpn'].get('hostname', fallback='client')
         ipv4_address, _prefix_length = get_address(self.config, 'ipv4')
