@@ -90,5 +90,7 @@ Other mesh VPNs worth checking out:
 * a performant (but secure) symmetric encryption
     * currently using `Fernet` from `cryptography` which should be foolproof but it's not very fast
 * possible workaround:
-	* an extra VPN subnet range for unencrypted data packets
-	* performance-hungry scenarios are usually SFTP-related, anyway (ssh, scp, rsync, sshfs, git+ssh, ...)
+	1. an extra VPN subnet range for unencrypted data packets
+		* performance-hungry scenarios are usually SFTP-related, anyway (ssh, scp, rsync, sshfs, git+ssh, ...)
+	2. per-port exemptions (e.g. TCP/22)
+		* or other packet marking
