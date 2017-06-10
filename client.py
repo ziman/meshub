@@ -302,7 +302,7 @@ class Client:
         )
 
     def advertise_if_needed(self):
-        interval = self.config['hub'].getfloat('advert_interval_sec', fallback=30)
+        interval = self.config['hub'].getfloat('advert_interval_sec', fallback=60)
         if (datetime.datetime.now() - self.ts_last_advert).total_seconds() > interval:
             self.advertise()
             self.ts_last_advert = datetime.datetime.now()
@@ -482,7 +482,7 @@ def main(args):
                 log.exception("client died, restarting")
 
             log.info('sleeping before the next attempt...')
-            time.sleep(config['vpn'].getfloat('restart_delay_sec', fallback=30))
+            time.sleep(config['vpn'].getfloat('restart_delay_sec', fallback=10))
     finally:
         tun.close()
         sock.close()
