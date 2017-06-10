@@ -19,6 +19,7 @@ A lightweight full-mesh VPN
     * it would be nice to have an assymetric system with a CA that would fix this
 * Linux & OS X support
 	* OSX needs [the tuntap driver](http://tuntaposx.sourceforge.net/)
+* local host discovery using LAN broadcast
 
 ## Synopsis
 
