@@ -2,7 +2,7 @@ import struct
 import socket
 import collections
 
-VERSION = 1
+VERSION = 2
 
 MAX_PACKET_SIZE = 8192
 
@@ -14,7 +14,8 @@ PACKET_C2C_AUTH = 0x06
 PACKET_C2C_DATA = 0x08
 
 Packet_rx = collections.namedtuple('Packet_rx', 'peer magic payload')
-Packet_h2c = collections.namedtuple('Packet_h2c', 'src_addr src_port')
+Packet_h2c = collections.namedtuple('Packet_h2c', 'src_addr src_port protocol_version session_id')
+Packet_c2h = collections.namedtuple('Packet_c2h', 'protocol_version session_id')
 Packet_ping = collections.namedtuple('Packet_ping', 'payload')
 Packet_auth_enc = collections.namedtuple('Packet_auth_enc', 'payload_enc')
 Packet_data_enc = collections.namedtuple('Packet_data_enc', 'payload_enc')
@@ -31,13 +32,17 @@ def _read_c_string(bs):
 
 def to_bytes(magic, packet):
     if magic == PACKET_C2H:
-        return bytes([magic]);
+        return \
+            bytes([magic, packet.protocol_version]) \
+            + struct.pack('>L', packet.session_id)
 
     elif magic == PACKET_H2C:
         return \
             bytes([magic]) \
             + socket.inet_aton(packet.src_addr) \
             + struct.pack('>H', packet.src_port) \
+            + bytes([int(packet.protocol_version)]) \
+            + struct.pack('>L', packet.session_id)
 
     elif magic == PACKET_C2C_PING:
         return \
@@ -61,22 +66,19 @@ def to_bytes(magic, packet):
 
 def receive(sock):
     data, peer = sock.recvfrom(MAX_PACKET_SIZE)
-
-    if len(data) == 0:
-        raise MalformedPacket('empty packet')
-    else:
-        magic, data = data[0], data[1:]
+    magic, data = data[0], data[1:]
 
     if magic == PACKET_C2H:
-        payload = None
+        protocol_version = data[0]
+        session_id, = struct.unpack('>L', data[1:5])
+        payload = Packet_c2h(protocol_version, session_id)
 
     elif magic == PACKET_H2C:
-        if len(data) != 6:
-            raise MalformedPacket('wrong size of h2c_ip4 packet: %d' % len(data))
-
         src_addr = socket.inet_ntoa(data[:4])
-        src_port, = struct.unpack('>H', data[4:])
-        payload = Packet_h2c(src_addr, src_port)
+        src_port, = struct.unpack('>H', data[4:6])
+        protocol_version = data[6]
+        session_id, = struct.unpack('>L', data[7:11])
+        payload = Packet_h2c(src_addr, src_port, protocol_version, session_id)
 
     elif magic == PACKET_C2C_PING:
         payload = Packet_ping(payload=data)
