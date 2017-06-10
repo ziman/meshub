@@ -97,12 +97,12 @@ class Host:
     def seen_packet(self):
         self.ts_last_packet = datetime.datetime.now()
 
-    def process_advertisement(self, packet):
+    def process_advertisement(self, packet_payload):
         self.log.debug('state = %s' % self.state)
         self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
-        if packet.payload.session_id != self.session_id:
+        if packet_payload.session_id != self.session_id:
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
         else:
@@ -184,6 +184,10 @@ class Host:
                 return
 
             self.tun.write(plaintext)
+
+        elif packet.magic == protocol.PACKET_C2H:
+            log.debug('LAN broadcast received from %s', packet.peer)
+            self.process_advertisement(packet.payload)
 
         else:
             log.warn('unknown packet magic: 0x%02x' % packet.magic)
@@ -339,7 +343,7 @@ class Client:
         if packet.magic == protocol.PACKET_H2C:
             peer = (packet.payload.src_addr, packet.payload.src_port)
             host = self.get_host(peer)
-            host.process_advertisement(packet)
+            host.process_advertisement(packet.payload)
 
         else:
             host = self.get_host(packet.peer)
