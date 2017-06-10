@@ -2,7 +2,7 @@
 
 A lightweight full-mesh VPN
 
-## Goals
+## Features / Philosophy
 
 * mesh connectivity with O(n²) direct client-to-client NAT-traversal edges
 * IPv6 *inside* the VPN
@@ -13,7 +13,7 @@ A lightweight full-mesh VPN
 * no packet forwarding through hub or nodes
 	* there are only direct peer-to-peer connections
 	* of course, OS-level routing always works
-* client-to-client edges encrypted using a PSK
+* client-to-client edges encrypted symmetrically using a PSK
 	* clients are trusted and can impersonate each other
     * it would be nice to have an assymetric system with a CA that would fix this
 * Linux & OS X support
