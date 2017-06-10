@@ -89,3 +89,6 @@ Other mesh VPNs worth checking out:
 * drop privileges after opening sockets & ifaces
 * a performant (but secure) symmetric encryption
     * currently using `Fernet` from `cryptography` which should be foolproof but it's not very fast
+* possible workaround:
+	* an extra VPN subnet range for unencrypted data packets
+	* performance-hungry scenarios are usually SFTP-related, anyway (ssh, scp, rsync, sshfs, git+ssh, ...)
