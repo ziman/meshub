@@ -6,7 +6,8 @@ A lightweight full-mesh VPN
 
 * mesh connectivity with O(n²) direct client-to-client NAT-traversal edges
 * IPv6 *inside* the VPN
-* untrusted and unstable central hub
+	* IPv6 in WAN has a very low priority
+* untrusted and unstable central hub with a public IPv4 address
 	* assumed to be in the cloud, on someone else's computer, etc.
 	* complete exposure should not affect confidentiality of other nodes' communications
 	* if it goes down, the network must keep working (but new clients may not be able to join)
