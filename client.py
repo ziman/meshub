@@ -74,7 +74,7 @@ class Host:
 
         self.ping_interval = config['vpn'].getfloat('ping_interval_sec', 30)
 
-        enc_scheme = config['encryption']['scheme']
+        enc_scheme = config['encryption'].get('scheme', fallback='fernet')
         if enc_scheme == 'fernet':
             self.cipher = FernetEncryption(config['encryption']['psk'])
         elif enc_scheme == 'null':
@@ -211,7 +211,7 @@ class Host:
     def send_auth_packet(self):
         self.log.debug('sending AUTH in state: ' + self.state)
 
-        hostname = self.config['vpn']['hostname']
+        hostname = self.config['vpn'].get('hostname', fallback='client')
         ipv4_address, _prefix_length = get_address(self.config, 'ipv4')
         ipv6_address, _prefix_length = get_address(self.config, 'ipv6')
 
@@ -328,7 +328,7 @@ class Client:
 
     def purge_dead_hosts(self):
         now = datetime.datetime.now()
-        timeout = self.config['vpn'].getfloat('ping_timeout_sec', 120)
+        timeout = self.config['vpn'].getfloat('ping_timeout_sec', 300)
         for host in list(self.hosts_by_peer.values()):
             if (now - host.ts_last_packet).total_seconds() > timeout:
                 log.debug('closing host %s for inactivity' % host)
@@ -371,7 +371,7 @@ class Client:
 
     def main_loop(self):
         select_timeout_sec = self.config['socket'].getfloat(
-            'select_interval_sec', fallback=5.0
+            'select_interval_sec', fallback=5
         )
 
         # first, advertise ourselves
@@ -409,7 +409,7 @@ def setup_tun(config):
         tap=False,
     )
 
-    hostname = config['vpn']['hostname']
+    hostname = config['vpn'].get('hostname', fallback='client')
 
     script = config['scripts'].get('tun_setup')
     if script:
@@ -457,6 +457,10 @@ def setup_tun(config):
 def main(args):
     config = configparser.ConfigParser()
     config.read(args.config)
+    if 'vpn' not in config:
+        config['vpn'] = {}
+    if 'socket' not in config:
+        config['socket'] = {}
 
     tun = setup_tun(config)
 
@@ -468,7 +472,7 @@ def main(args):
 
     hub = (
         config['hub'].get('address'),
-        config['hub'].getint('port'),
+        config['hub'].getint('port', fallback=3731),
     )
 
     try:
