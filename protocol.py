@@ -33,8 +33,7 @@ def _read_c_string(bs):
 def to_bytes(magic, packet):
     if magic == PACKET_C2H:
         return \
-            bytes([magic]) \
-            + [int(packet.protocol_version)] \
+            bytes([magic, packet.protocol_version]) \
             + struct.pack('>L', packet.session_id)
 
     elif magic == PACKET_H2C:
@@ -42,7 +41,7 @@ def to_bytes(magic, packet):
             bytes([magic]) \
             + socket.inet_aton(packet.src_addr) \
             + struct.pack('>H', packet.src_port) \
-            + [int(packet.protocol_version)] \
+            + bytes([int(packet.protocol_version)]) \
             + struct.pack('>L', packet.session_id)
 
     elif magic == PACKET_C2C_PING:

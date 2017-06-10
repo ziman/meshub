@@ -23,8 +23,8 @@ def broadcast_peer(sock, src_peer, packet, hosts):
     data = protocol.to_bytes(protocol.PACKET_H2C, protocol.Packet_h2c(
         src_addr=src_peer[0],
         src_port=src_peer[1],
-        packet.protocol_version,
-        packet.session_id,
+        protocol_version=packet.protocol_version,
+        session_id=packet.session_id,
     ))
 
     # make a copy because iteration may delete stale entries

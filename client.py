@@ -289,7 +289,7 @@ class Client:
             protocol.PACKET_C2H,
             protocol.Packet_c2h(
                 protocol_version=protocol.VERSION,
-                session_id=self.client.session_id
+                session_id=self.session_id
             ),
         )
 
