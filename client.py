@@ -128,6 +128,7 @@ class Host:
                 self.send_auth_packet()
 
         elif packet.magic == protocol.PACKET_C2C_AUTH:
+            self.log.debug('auth packet from %s', packet.peer)
             try:
                 plaintext = self.cipher.decrypt(packet.payload.payload_enc)
             except InvalidToken:
@@ -290,7 +291,7 @@ class Client:
 
         self.maintenance_interval_sec = config['vpn'].getfloat('maintenance_interval_sec', 10)
 
-    def advertise(self, starting_up=False):
+    def advertise_hub(self):
         protocol.sendto(
             self.sock,
             self.peer_hub,
@@ -301,10 +302,28 @@ class Client:
             ),
         )
 
+    def advertise_lan(self):
+        for port_s in self.config['socket'].get('lan_advert_ports', fallback='').split(','):
+            if port_s:
+                port = int(port_s.strip())
+            else:
+                continue
+
+            protocol.sendto(
+                self.sock,
+                ('255.255.255.255', port),
+                protocol.PACKET_C2H,
+                protocol.Packet_c2h(
+                    protocol_version=protocol.VERSION,
+                    session_id=self.session_id
+                ),
+            )
+
     def advertise_if_needed(self):
         interval = self.config['hub'].getfloat('advert_interval_sec', fallback=60)
         if (datetime.datetime.now() - self.ts_last_advert).total_seconds() > interval:
-            self.advertise()
+            self.advertise_hub()
+            self.advertise_lan()
             self.ts_last_advert = datetime.datetime.now()
 
     def get_host(self, peer):
@@ -376,7 +395,8 @@ class Client:
 
         # first, advertise ourselves
         for _ in range(2):
-            self.advertise()
+            self.advertise_hub()
+            self.advertise_lan()
 
         while True:
             rs, ws, xs = select.select(
@@ -465,6 +485,9 @@ def main(args):
     tun = setup_tun(config)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    if config['socket'].get('lan_advert_ports', fallback=''):
+        # enable broadcast on socket
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.bind((
         config['socket'].get('address', fallback='0.0.0.0'),
         config['socket'].getint('port', fallback=3731),
