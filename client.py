@@ -178,11 +178,14 @@ class Host:
                 self.send_auth_packet()
                 return
 
-            try:
-                plaintext = self.cipher.decrypt(packet.payload.payload_enc)
-            except InvalidToken:
-                self.log.warn('could not decrypt data packet')
-                return
+            if packet.payload.is_encrypted:
+                try:
+                    plaintext = self.cipher.decrypt(packet.payload.payload_enc)
+                except InvalidToken:
+                    self.log.warn('could not decrypt data packet')
+                    return
+            else:
+                plaintext = packet.payload.payload
 
             self.tun.write(plaintext)
 
@@ -204,15 +207,16 @@ class Host:
         )
         self.ts_last_ping = datetime.datetime.now()
 
-    def send_encrypted_packet(self, magic, payload):
-        self.send_packet(magic,
-            protocol.Packet_data_enc(
-                payload_enc=self.cipher.encrypt(payload)
+    def send_data_packet(self, data, encrypt=True):
+        self.send_packet(protocol.PACKET_C2C_DATA,
+            protocol.Packet_data(
+                is_encrypted=encrypt,
+                payload=
+                    self.cipher.encrypt(data)
+                    if encrypt else
+                    data
             )
         )
-
-    def send_data_packet(self, data):
-        self.send_encrypted_packet(protocol.PACKET_C2C_DATA, data)
 
     def send_auth_packet(self):
         self.log.debug('sending AUTH in state %s to peer %s', self.state, self.peer)
@@ -232,7 +236,12 @@ class Host:
             'session_id': self.client.session_id,
         }).encode('ascii')
 
-        self.send_encrypted_packet(protocol.PACKET_C2C_AUTH, payload)
+        self.send_packet(
+            protocol.PACKET_C2C_AUTH,
+            protocol.Packet_auth_enc(
+                payload_enc=self.cipher.encrypt(payload)
+            )
+        )
 
     def iteration(self):
         #self.log.debug('iteration, state=%s' % self.state)
@@ -377,13 +386,26 @@ class Client:
     def process_tun_packet(self, packet):
         #log.debug('tun packet: %s' % packet)
 
-        version = (packet[0] >> 4) & 0x0F;
+        version = (packet[0] >> 4) & 0x0F  # IP version
         if version == 4:
             addr_dst = packet[16:20]
-            addr_s = socket.inet_ntop(socket.AF_INET, addr_dst)
+            #addr_s = socket.inet_ntop(socket.AF_INET, addr_dst)
+
+            header_length = 4 * (packet[0] & 0x0F)  # in bytes
+            is_tcp = (packet[9] == 0x06)
+            if is_tcp:
+                src_port, dst_port = struct.unpack('>HH', packet[header_length:header_length+4])
+            else:
+                src_port, dst_port = None, None
         elif version == 6:
             addr_dst = packet[24:40]
-            addr_s = socket.inet_ntop(socket.AF_INET6, addr_dst)
+            #addr_s = socket.inet_ntop(socket.AF_INET6, addr_dst)
+
+            is_tcp = (packet[6] == 0x06)
+            if is_tcp:
+                src_port, dst_port = struct.unpack('>HH', packet[40:44])
+            else:
+                src_port, dst_port = None, None
         else:
             log.warn('unknown IP version: 0x%02x' % version)
             return
@@ -391,7 +413,10 @@ class Client:
         host = self.routes.get(addr_dst)
         #log.debug('routing packet for %s to %s' % (addr_s, host))
         if host:
-            host.send_data_packet(packet)
+            if is_tcp and ((src_port in self.encryption_exempt_ports) or (dst_port in self.encryption_exempt_ports)):
+                host.send_data_packet(packet, encrypt=False)
+            else:
+                host.send_data_packet(packet, encrypt=True)
 
     def main_loop(self):
         select_timeout_sec = self.config['socket'].getfloat(
