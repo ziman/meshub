@@ -187,6 +187,11 @@ class Host:
             else:
                 plaintext = packet.payload.payload
 
+            # for switched networks, remember that this MAC address belongs to this host
+            if self.client.is_tap:
+                addr_src = plaintext[6:12]
+                self.client.routes[addr_src] = self
+
             self.tun.write(plaintext)
 
         elif packet.magic == protocol.PACKET_C2H:
@@ -299,6 +304,7 @@ class Client:
         self.hosts_by_peer = dict()  # peer -> Host
         self.routes = dict()  # vpn address (ipv4 or ipv6) -> Host
         self.tun = tun
+        self.is_tap = (config['tun'].get('type', 'tun') == 'tap')
         self.ts_last_advert = datetime.datetime.now()
         self.ts_last_maintenance = datetime.datetime.now()
         self.session_id = random.getrandbits(32)
@@ -388,6 +394,17 @@ class Client:
 
         self.advertise_if_needed()
 
+    def process_tap_packet(self, packet):
+        addr_dst = packet[:6]
+
+        host = self.routes.get(addr_dst)
+        if host:
+            host.send_data_packet(packet, encrypt=True)
+        else:
+            # dest unknown, broadcast it
+            for host in self.routes.values():
+                host.send_data_packet(packet, encrypt=True)
+
     def process_tun_packet(self, packet):
         #log.debug('tun packet: %s' % packet)
 
@@ -447,7 +464,10 @@ class Client:
                 elif fd == self.tun.fd:
                     # tun traffic
                     packet = self.tun.read()
-                    self.process_tun_packet(packet)
+                    if self.is_tap:
+                        self.process_tap_packet(packet)
+                    else:
+                        self.process_tun_packet(packet)
                 else:
                     # generic timeout
                     pass
@@ -459,9 +479,11 @@ class Client:
 
 def setup_tun(config):
     tun_name = config['tun'].get('interface', fallback='tun%d')
+    is_tap = (config['tun'].get('type', 'tun') == 'tap')
+
     tun = Tun(
         name=tun_name,
-        tap=False,
+        tap=is_tap,
     )
 
     hostname = config['vpn'].get('hostname', fallback='client')
