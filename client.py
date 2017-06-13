@@ -83,11 +83,6 @@ class Host:
         else:
             raise Exception('unknown encryption scheme: %s' % enc_scheme)
 
-        self.unencrypted_tcp_ports = set()
-        for port_s in config['encryption'].get('unencrypted_tcp_ports', '').split(','):
-            if port_s.strip():
-                self.unencrypted_tcp_ports.add(int(port_s.strip()))
-
         self.name = None
         self.ipv4_address = None  # bytes, not string
         self.ipv6_address = None  # bytes, not string
@@ -309,6 +304,11 @@ class Client:
         self.session_id = random.getrandbits(32)
 
         self.maintenance_interval_sec = config['vpn'].getfloat('maintenance_interval_sec', 10)
+
+        self.unencrypted_tcp_ports = set()
+        for port_s in config['encryption'].get('unencrypted_tcp_ports', '').split(','):
+            if port_s.strip():
+                self.unencrypted_tcp_ports.add(int(port_s.strip()))
 
     def advertise_hub(self):
         protocol.sendto(
