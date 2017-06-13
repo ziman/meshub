@@ -2,7 +2,7 @@ import struct
 import socket
 import collections
 
-VERSION = 3
+VERSION = 4
 
 MAX_PACKET_SIZE = 8192
 
