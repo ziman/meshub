@@ -18,7 +18,7 @@ Packet_h2c = collections.namedtuple('Packet_h2c', 'src_addr src_port protocol_ve
 Packet_c2h = collections.namedtuple('Packet_c2h', 'protocol_version session_id')
 Packet_ping = collections.namedtuple('Packet_ping', 'payload')
 Packet_auth_enc = collections.namedtuple('Packet_auth_enc', 'payload_enc')
-Packet_data_enc = collections.namedtuple('Packet_data_enc', 'payload_enc')
+Packet_data = collections.namedtuple('Packet_data', 'is_encrypted payload')
 
 class MalformedPacket(Exception):
     pass
@@ -59,8 +59,8 @@ def to_bytes(magic, packet):
 
     elif magic == PACKET_C2C_DATA:
         return \
-            bytes([magic]) \
-            + packet.payload_enc
+            bytes([magic, int(packet.is_encrypted)]) \
+            + packet.payload
     else:
         raise MalformedPacket('unknown tx magic: 0x%02x' % magic)
 
@@ -91,7 +91,7 @@ def receive(sock):
             payload = Packet_auth_enc(payload_enc=data)
 
         elif magic == PACKET_C2C_DATA:
-            payload = Packet_data_enc(payload_enc=data)
+            payload = Packet_data(is_encrypted=bool(data[0]), payload=data[1:])
 
         else:
             raise MalformedPacket('unknown magic: 0x%02x' % magic)
