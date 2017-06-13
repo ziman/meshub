@@ -151,6 +151,15 @@ class Host:
                 ))
                 return
 
+            expected_mode = 'tap' if self.client_is_tap else 'tun'
+            if doc.get('mode') != expected_mode:
+                log.warn(
+                    'rejecting AUTH: wrong mode %s (expected %s)',
+                    doc.get('mode'),
+                    expected_mode
+                )
+                return
+
             self.name = doc['hostname']
             self.ipv4_address = doc['address'].get('ipv4') \
                     and socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
@@ -244,6 +253,7 @@ class Host:
                 'ipv4': ipv4_address,
                 'ipv6': ipv6_address,
             },
+            'mode': 'tap' if self.client.is_tap else 'tun',
             'expected_session_id': self.session_id,
             'session_id': self.client.session_id,
         }).encode('ascii')
