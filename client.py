@@ -195,10 +195,10 @@ class Host:
             # see process_tap_packet() for packet format reference
             if self.client.is_tap:
                 addr_src = plaintext[6:12]
-                self.log.debug('SRC address ' + str_mac(addr_src))
+                #self.log.debug('SRC address ' + str_mac(addr_src))
                 self.client.routes[addr_src] = self
 
-            log.debug('writing to interface: %s', str_mac(plaintext))
+            #log.debug('writing to interface: %s', str_mac(plaintext))
             self.tun.write(plaintext)
 
         elif packet.magic == protocol.PACKET_C2H:
@@ -405,13 +405,13 @@ class Client:
         addr_dst = packet[:6]
         host = self.routes.get(addr_dst)
         if host:
-            log.debug('TAP packet for %s goes to %s', str_mac(addr_dst), host)
+            #log.debug('TAP packet for %s goes to %s', str_mac(addr_dst), host)
             host.send_data_packet(packet, encrypt=True)
         else:
             # dest unknown, broadcast it
-            log.debug('broadcast TAP packet for %s', str_mac(addr_dst))
+            #log.debug('broadcast TAP packet for %s', str_mac(addr_dst))
             for host in self.hosts_by_peer.values():
-                log.debug('sending it to %s', host)
+                #log.debug('sending it to %s', host)
                 host.send_data_packet(packet, encrypt=True)
 
     def process_tun_packet(self, packet):
