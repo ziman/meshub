@@ -185,7 +185,7 @@ class Host:
 
             if packet.payload.is_encrypted:
                 try:
-                    plaintext = self.cipher.decrypt(packet.payload.payload_enc)
+                    plaintext = self.cipher.decrypt(packet.payload.payload)
                 except InvalidToken:
                     self.log.warn('could not decrypt data packet')
                     return
