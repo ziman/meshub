@@ -151,7 +151,7 @@ class Host:
                 ))
                 return
 
-            expected_mode = 'tap' if self.client_is_tap else 'tun'
+            expected_mode = 'tap' if self.client.is_tap else 'tun'
             if doc.get('mode') != expected_mode:
                 log.warn(
                     'rejecting AUTH: wrong mode %s (expected %s)',
