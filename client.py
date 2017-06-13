@@ -28,6 +28,9 @@ IFF_NO_PI = 0x1000
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
+def str_mac(addr):
+    return ':'.join('%02x' % x for x in addr)
+
 def get_address(config, proto):
     address_s = config['tun'].get(proto + '_address')
     if not address_s:
@@ -159,11 +162,12 @@ class Host:
                 self.state = Host.STATE_CONNECTED
                 self.session_id = doc['session_id']
             
-                if self.ipv4_address:
-                    self.routes[self.ipv4_address] = self
+                if not self.client.is_tap:
+                    if self.ipv4_address:
+                        self.routes[self.ipv4_address] = self
 
-                if self.ipv6_address:
-                    self.routes[self.ipv6_address] = self
+                    if self.ipv6_address:
+                        self.routes[self.ipv6_address] = self
 
                 self.log = logging.getLogger(str(self))
                 self.log.info('connected!')
@@ -188,10 +192,13 @@ class Host:
                 plaintext = packet.payload.payload
 
             # for switched networks, remember that this MAC address belongs to this host
+            # see process_tap_packet() for packet format reference
             if self.client.is_tap:
                 addr_src = plaintext[6:12]
+                self.log.debug('SRC address ' + str_mac(addr_src))
                 self.client.routes[addr_src] = self
 
+            log.debug('writing to interface: %s', str_mac(plaintext))
             self.tun.write(plaintext)
 
         elif packet.magic == protocol.PACKET_C2H:
@@ -396,13 +403,15 @@ class Client:
 
     def process_tap_packet(self, packet):
         addr_dst = packet[:6]
-
         host = self.routes.get(addr_dst)
         if host:
+            log.debug('TAP packet for %s goes to %s', str_mac(addr_dst), host)
             host.send_data_packet(packet, encrypt=True)
         else:
             # dest unknown, broadcast it
-            for host in self.routes.values():
+            log.debug('broadcast TAP packet for %s', str_mac(addr_dst))
+            for host in self.hosts_by_peer.values():
+                log.debug('sending it to %s', host)
                 host.send_data_packet(packet, encrypt=True)
 
     def process_tun_packet(self, packet):
