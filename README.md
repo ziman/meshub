@@ -92,5 +92,5 @@ Other mesh VPNs worth checking out:
 * possible workaround:
 	1. an extra VPN subnet range for unencrypted data packets
 		* performance-hungry scenarios are usually SFTP-related, anyway (ssh, scp, rsync, sshfs, git+ssh, ...)
-	2. per-port exemptions (e.g. TCP/22)
+	2. per-port exemptions (e.g. TCP(v6)/22) `<-- currently used hack`
 		* or other packet marking
