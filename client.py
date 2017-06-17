@@ -25,6 +25,9 @@ IFF_TUN   = 0x0001
 IFF_TAP   = 0x0002
 IFF_NO_PI = 0x1000
 
+PROTO_TCP = 0x06
+PROTO_UDP = 0x11
+
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -333,6 +336,12 @@ class Client:
             if port_s.strip():
                 self.unencrypted_tcp_ports.add(int(port_s.strip()))
 
+        self.unencrypted_udp_ports = set()
+        for port_s in config['encryption'].get('unencrypted_udp_ports', '').split(','):
+            if port_s.strip():
+                self.unencrypted_udp_ports.add(int(port_s.strip()))
+
+
     def advertise_hub(self):
         protocol.sendto(
             self.sock,
@@ -427,26 +436,26 @@ class Client:
     def process_tun_packet(self, packet):
         #log.debug('tun packet: %s' % packet)
 
+        ip_protocol = None
+        src_port, dst_port = None, None
+
         version = (packet[0] >> 4) & 0x0F  # IP version
         if version == 4:
             addr_dst = packet[16:20]
             #addr_s = socket.inet_ntop(socket.AF_INET, addr_dst)
 
             header_length = 4 * (packet[0] & 0x0F)  # in bytes
-            is_tcp = (packet[9] == 0x06)
-            if is_tcp:
+            ip_protocol = packet[9]
+
+            if ip_protocol in (PROTO_TCP, PROTO_UDP):
                 src_port, dst_port = struct.unpack('>HH', packet[header_length:header_length+4])
-            else:
-                src_port, dst_port = None, None
         elif version == 6:
             addr_dst = packet[24:40]
             #addr_s = socket.inet_ntop(socket.AF_INET6, addr_dst)
 
-            is_tcp = (packet[6] == 0x06)
-            if is_tcp:
+            ip_protocol = packet[6]
+            if ip_protocol in (PROTO_TCP, PROTO_UDP):
                 src_port, dst_port = struct.unpack('>HH', packet[40:44])
-            else:
-                src_port, dst_port = None, None
         else:
             log.warn('unknown IP version: 0x%02x' % version)
             return
@@ -454,8 +463,20 @@ class Client:
         host = self.routes.get(addr_dst)
         #log.debug('routing packet for %s to %s' % (addr_s, host))
         if host:
-            if is_tcp and ((src_port in self.unencrypted_tcp_ports) or (dst_port in self.unencrypted_tcp_ports)):
+            if ip_protocol == PROTO_TCP \
+                    and (
+                        (src_port in self.unencrypted_tcp_ports) \
+                        or (dst_port in self.unencrypted_tcp_ports)
+                    ):
                 host.send_data_packet(packet, encrypt=False)
+
+            elif ip_protocol == PROTO_UDP \
+                    and (
+                        (src_port in self.unencrypted_udp_ports) \
+                        or (dst_port in self.unencrypted_udp_ports)
+                    ):
+                host.send_data_packet(packet, encrypt=False)
+
             else:
                 host.send_data_packet(packet, encrypt=True)
 
