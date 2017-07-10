@@ -16,7 +16,6 @@ import datetime
 import subprocess
 import collections
 import configparser
-from cryptography.fernet import Fernet, InvalidToken
 
 import protocol
 
@@ -44,22 +43,64 @@ def get_address(config, proto):
 
     return address, prefix_length
 
+class CryptoError(Exception):
+    pass
+
 class NullEncryption:
+    def __init__(self, key):
+        self.messages_encrypted = 0
+        self.key = key
+
     def encrypt(self, data):
+        self.messages_encrypted += 1
         return data
 
     def decrypt(self, data):
         return data
+
+class PyNaClEncryption:
+    def __init__(self, key):
+        import nacl.secret
+        import nacl.utils
+        self.nacl_secret = nacl.secret
+        self.nacl_utils = nacl.utils
+
+        self.box = self.nacl_secret.SecretBox(key)
+        self.key = key
+        self.messages_encrypted = 0
+
+    def gen_session_key(self):
+        return self.nacl_utils.random(self.nacl_secret.SecretBox.KEY_SIZE)
+
+    def encrypt(self, data, nonce=None):
+        self.messages_encrypted += 1
+        return self.box.encrypt(data, nonce=nonce)
+
+    def decrypt(self, data):
+        return self.box.decrypt(data)
 
 class FernetEncryption:
     def __init__(self, key):
+        from cryptography.fernet import Fernet, InvalidToken
+        self.Fernet = Fernet
+        self.InvalidToken = InvalidToken
         self.fernet = Fernet(key)
+        self.key = key
+        self.messages_encrypted = 0
+
+    def gen_session_key(self):
+        return self.Fernet.generate_key()
 
     def encrypt(self, data):
+        # we always generate a random nonce
+        self.messages_encrypted += 1
         return base64.urlsafe_b64decode(self.fernet.encrypt(data))
 
     def decrypt(self, data):
-        return self.fernet.decrypt(base64.urlsafe_b64encode(data))
+        try:
+            return self.fernet.decrypt(base64.urlsafe_b64encode(data))
+        except self.InvalidToken as e:
+            raise CryptoError(str(e))
 
 class Host:
 
@@ -80,22 +121,40 @@ class Host:
 
         self.ping_interval = config['vpn'].getfloat('ping_interval_sec', 30)
 
-        enc_scheme = config['encryption'].get('scheme', fallback='fernet')
-        if enc_scheme == 'fernet':
-            self.cipher = FernetEncryption(config['encryption']['psk'])
-        elif enc_scheme == 'null':
-            log.warn('using null encryption scheme')
-            self.cipher = NullEncryption()
+        self.enc_scheme = config['encryption'].get('scheme', fallback='nacl')
+
+        if self.enc_scheme == 'fernet':
+            psk = config['encryption']['psk']
+        elif self.enc_scheme == 'nacl':
+            psk = base64.b64decode(config['encryption']['psk'])
         else:
-            raise Exception('unknown encryption scheme: %s' % enc_scheme)
+            psk = None
+
+        self.cipher_psk = self.new_cipher(psk)
+
+        self.cipher_rx = None
+        self.cipher_tx = None
 
         self.name = None
         self.ipv4_address = None  # bytes, not string
         self.ipv6_address = None  # bytes, not string
         self.rnode = None  # routing node
-        self.session_id = None  # remote host's session id
+        self.peer_client_id = None  # remote host's session id
 
         self.log = logging.getLogger(str(self))
+
+    def new_cipher(self, key):
+        log.debug('new cipher: %s, %s', self.enc_scheme, base64.b64encode(key).decode('ascii'))
+
+        if self.enc_scheme == 'fernet':
+            return FernetEncryption(key)
+        elif self.enc_scheme == 'null':
+            log.warn('using null encryption scheme')
+            return NullEncryption()
+        elif self.enc_scheme == 'nacl':
+            return PyNaClEncryption(key)
+        else:
+            raise Exception('unknown encryption scheme: %s' % enc_scheme)
 
     def __str__(self):
         return self.name or ('%s:%d' % self.peer)
@@ -108,7 +167,7 @@ class Host:
         #self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
-        if packet_payload.session_id != self.session_id:
+        if packet_payload.client_id != self.peer_client_id:
             self.log.debug('connection needs refreshing, sending auth packet...')
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
@@ -138,8 +197,8 @@ class Host:
         elif packet.magic == protocol.PACKET_C2C_AUTH:
             self.log.debug('auth packet from %s', packet.peer)
             try:
-                plaintext = self.cipher.decrypt(packet.payload.payload_enc)
-            except InvalidToken:
+                plaintext = self.cipher_psk.decrypt(packet.payload.payload_enc)
+            except CryptoError:
                 self.log.warn('could not decrypt auth packet')
                 return
 
@@ -169,11 +228,19 @@ class Host:
             self.ipv6_address = doc['address'].get('ipv6') \
                     and socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
 
-            if (self.state != Host.STATE_CONNECTED) or (doc['session_id'] != self.session_id):
+            rx_key = base64.b64decode(doc['tx_key'])
+            tx_key = base64.b64decode(doc['rx_key'])
+
+            if (self.state != Host.STATE_CONNECTED) \
+                    or (doc['client_id'] != self.peer_client_id) \
+                    or (self.cipher_rx is None) \
+                    or (self.cipher_rx.key != rx_key):
+
                 # other party's details updated, switch to STATE_CONNECTED
                 self.state = Host.STATE_CONNECTED
-                self.session_id = doc['session_id']
-            
+                self.peer_client_id = doc['client_id']
+                self.cipher_rx = self.new_cipher(rx_key)
+
                 if not self.client.is_tap:
                     if self.ipv4_address:
                         self.routes[self.ipv4_address] = self
@@ -184,7 +251,8 @@ class Host:
                 self.log = logging.getLogger(str(self))
                 self.log.info('connected!')
 
-            if doc['expected_session_id'] != self.client.session_id:
+            if (doc['expected_client_id'] != self.client.client_id) \
+                    or (self.cipher_tx.key != tx_key):
                 # remote host does not seem to have up-to-date info about us
                 self.send_auth_packet()
 
@@ -194,11 +262,17 @@ class Host:
                 self.send_auth_packet()
                 return
 
+            if self.cipher_rx is None:
+                log.info('data packet arrived but no session established, refreshing connection with %s:%d' % packet.peer)
+                self.send_auth_packet()
+                return
+
             if packet.payload.is_encrypted:
                 try:
-                    plaintext = self.cipher.decrypt(packet.payload.payload)
-                except InvalidToken:
-                    self.log.warn('could not decrypt data packet')
+                    plaintext = self.cipher_rx.decrypt(packet.payload.payload)
+                except CryptoError:
+                    self.log.warn('could not decrypt data packet, refreshing session')
+                    self.send_auth_packet()
                     return
             else:
                 plaintext = packet.payload.payload
@@ -232,11 +306,16 @@ class Host:
         self.ts_last_ping = datetime.datetime.now()
 
     def send_data_packet(self, data, encrypt=True):
+        if self.cipher_tx is None:
+            log.warn('trying to send data but no session established with %s:%d, sending auth', self.peer)
+            self.send_auth_packet()
+            return
+
         self.send_packet(protocol.PACKET_C2C_DATA,
             protocol.Packet_data(
                 is_encrypted=encrypt,
                 payload=
-                    self.cipher.encrypt(data)
+                    self.cipher_tx.encrypt(data)
                     if encrypt else
                     data
             )
@@ -249,6 +328,11 @@ class Host:
         ipv4_address, _prefix_length = get_address(self.config, 'ipv4')
         ipv6_address, _prefix_length = get_address(self.config, 'ipv6')
 
+        if self.cipher_tx is None:
+            self.cipher_tx = self.new_cipher(
+                self.cipher_psk.gen_session_key()
+            )
+
         payload = json.dumps({
             'version': protocol.VERSION,
             'hostname': hostname,
@@ -257,14 +341,16 @@ class Host:
                 'ipv6': ipv6_address,
             },
             'mode': 'tap' if self.client.is_tap else 'tun',
-            'expected_session_id': self.session_id,
-            'session_id': self.client.session_id,
+            'expected_client_id': self.peer_client_id,
+            'client_id': self.client.client_id,
+            'tx_key': base64.b64encode(self.cipher_tx.key).decode('ascii'),
+            'rx_key': base64.b64encode(self.cipher_rx.key if self.cipher_rx else b'').decode('ascii'),
         }).encode('ascii')
 
         self.send_packet(
             protocol.PACKET_C2C_AUTH,
             protocol.Packet_auth_enc(
-                payload_enc=self.cipher.encrypt(payload)
+                payload_enc=self.cipher_psk.encrypt(payload)
             )
         )
 
@@ -327,7 +413,7 @@ class Client:
         self.is_tap = (config['tun'].get('type', 'tun') == 'tap')
         self.ts_last_advert = datetime.datetime.now()
         self.ts_last_maintenance = datetime.datetime.now()
-        self.session_id = random.getrandbits(32)
+        self.client_id = random.getrandbits(32)
 
         self.maintenance_interval_sec = config['vpn'].getfloat('maintenance_interval_sec', 10)
 
@@ -349,7 +435,7 @@ class Client:
             protocol.PACKET_C2H,
             protocol.Packet_c2h(
                 protocol_version=protocol.VERSION,
-                session_id=self.session_id
+                client_id=self.client_id
             ),
         )
 
@@ -366,7 +452,7 @@ class Client:
                 protocol.PACKET_C2H,
                 protocol.Packet_c2h(
                     protocol_version=protocol.VERSION,
-                    session_id=self.session_id
+                    client_id=self.client_id
                 ),
             )
 
@@ -409,7 +495,7 @@ class Client:
         #log.debug('packet: %s' % (packet,))
         try:
             self.process_packet(packet)
-        except InvalidToken as e:
+        except CryptoError as e:
             self.log.warn('could not authenticate packet: %s' % e)
 
     def maintenance(self):
