@@ -27,8 +27,6 @@ IFF_NO_PI = 0x1000
 PROTO_TCP = 0x06
 PROTO_UDP = 0x11
 
-SESSION_LENGTH_LIMIT = 65536
-
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -46,9 +44,6 @@ def get_address(config, proto):
     return address, prefix_length
 
 class CryptoError(Exception):
-    pass
-
-class CipherExhausted(CryptoError):
     pass
 
 class NullEncryption:
@@ -79,9 +74,6 @@ class PyNaClEncryption:
 
     def encrypt(self, data, nonce=None):
         self.messages_encrypted += 1
-        if self.messages_encrypted > SESSION_LENGTH_LIMIT:
-            raise CipherExhausted('session exhausted, generate a new session key')
-
         return self.box.encrypt(data, nonce=nonce)
 
     def decrypt(self, data):
@@ -102,9 +94,6 @@ class FernetEncryption:
     def encrypt(self, data):
         # we always generate a random nonce
         self.messages_encrypted += 1
-        if self.messages_encrypted > SESSION_LENGTH_LIMIT:
-            raise CipherExhausted('session exhausted, generate a new session key')
-
         return base64.urlsafe_b64decode(self.fernet.encrypt(data))
 
     def decrypt(self, data):
@@ -322,20 +311,15 @@ class Host:
             self.send_auth_packet()
             return
 
-        try:
-            self.send_packet(protocol.PACKET_C2C_DATA,
-                protocol.Packet_data(
-                    is_encrypted=encrypt,
-                    payload=
-                        self.cipher_tx.encrypt(data)
-                        if encrypt else
-                        data
-                )
+        self.send_packet(protocol.PACKET_C2C_DATA,
+            protocol.Packet_data(
+                is_encrypted=encrypt,
+                payload=
+                    self.cipher_tx.encrypt(data)
+                    if encrypt else
+                    data
             )
-        except CipherExausted:
-            self.cipher_tx = None
-            self.send_auth_packet()  # generate new tx key, inform the peer
-            self.send_data_packet(data, encrypt=encrypt)  # retry the packet
+        )
 
     def refresh_tx_cipher(self):
         self.cipher_tx = self.new_cipher(
