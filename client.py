@@ -84,12 +84,12 @@ class FernetEncryption:
         from cryptography.fernet import Fernet, InvalidToken
         self.Fernet = Fernet
         self.InvalidToken = InvalidToken
-        self.fernet = Fernet(key)
+        self.fernet = Fernet(base64.urlsafe_b64encode(key))
         self.key = key
         self.messages_encrypted = 0
 
     def gen_session_key(self):
-        return self.Fernet.generate_key()
+        return base64.urlsafe_b64decode(self.Fernet.generate_key())
 
     def encrypt(self, data):
         # we always generate a random nonce
@@ -123,9 +123,7 @@ class Host:
 
         self.enc_scheme = config['encryption'].get('scheme', fallback='nacl')
 
-        if self.enc_scheme == 'fernet':
-            psk = config['encryption']['psk']
-        elif self.enc_scheme == 'nacl':
+        if self.enc_scheme != 'null':
             psk = base64.b64decode(config['encryption']['psk'])
         else:
             psk = None
