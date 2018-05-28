@@ -16,6 +16,7 @@ import datetime
 import subprocess
 import collections
 import configparser
+import hashlib
 from cryptography.fernet import Fernet, InvalidToken
 
 import protocol
@@ -30,7 +31,8 @@ PROTO_UDP = 0x11
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
-
+global chain
+chain = []
 def str_mac(addr):
     return ':'.join('%02x' % x for x in addr)
 
@@ -52,8 +54,13 @@ class NullEncryption:
         return data
 
 class FernetEncryption:
+    global chain
     def __init__(self, key):
-        self.fernet = Fernet(key)
+        global chain
+        chain.append(key)
+        result = hashlib.md5(chain)
+        chain.append(result)
+        self.fernet = Fernet(result)
 
     def encrypt(self, data):
         return base64.urlsafe_b64decode(self.fernet.encrypt(data))
