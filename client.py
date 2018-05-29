@@ -17,6 +17,7 @@ import subprocess
 import collections
 import configparser
 import hashlib
+from Crypto.Cipher import AES
 from cryptography.fernet import Fernet, InvalidToken
 
 import protocol
@@ -60,7 +61,7 @@ class FernetEncryption:
         chain.append(key)
         result = hashlib.md5(chain)
         chain.append(result)
-        self.fernet = Fernet(result)
+        self.fernet = AES.new(result,AES.MODE_ECB)
 
     def encrypt(self, data):
         return base64.urlsafe_b64decode(self.fernet.encrypt(data))
