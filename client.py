@@ -18,7 +18,6 @@ import collections
 import configparser
 import hashlib
 from Crypto.Cipher import AES
-from cryptography.fernet import Fernet, InvalidToken
 
 import protocol
 
@@ -59,7 +58,9 @@ class FernetEncryption:
     def __init__(self, key):
         global chain
         chain.append(key)
-        result = hashlib.md5(chain)
+        result = hashlib.sha256(chain)
+        print(chain)
+        print(result)
         chain.append(result)
         self.fernet = AES.new(result,AES.MODE_ECB)
 
@@ -147,7 +148,7 @@ class Host:
             self.log.debug('auth packet from %s', packet.peer)
             try:
                 plaintext = self.cipher.decrypt(packet.payload.payload_enc)
-            except InvalidToken:
+            except:
                 self.log.warn('could not decrypt auth packet')
                 return
 
@@ -205,7 +206,7 @@ class Host:
             if packet.payload.is_encrypted:
                 try:
                     plaintext = self.cipher.decrypt(packet.payload.payload)
-                except InvalidToken:
+                except:
                     self.log.warn('could not decrypt data packet')
                     return
             else:
@@ -417,8 +418,8 @@ class Client:
         #log.debug('packet: %s' % (packet,))
         try:
             self.process_packet(packet)
-        except InvalidToken as e:
-            self.log.warn('could not authenticate packet: %s' % e)
+        except:
+            self.log.warn('could not authenticate packet: %s')
 
     def maintenance(self):
         self.purge_dead_hosts()
