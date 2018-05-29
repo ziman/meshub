@@ -17,9 +17,10 @@ import subprocess
 import collections
 import configparser
 import hashlib
-from Crypto.Cipher import AES
-
 import protocol
+from Crypto.Cipher import AES
+from Crypto import Random
+from padding import pad, unpad
 
 TUNSETIFF = 0x400454ca
 IFF_TUN   = 0x0001
@@ -56,19 +57,40 @@ class NullEncryption:
 class FernetEncryption:
     global chain
     def __init__(self, key):
+        print('Crypto Init')
+        global cipher
+        cipher = key
+        global strres
         global chain
-        chain.append(key)
-        result = hashlib.sha256(chain)
-        print(chain)
-        print(result)
-        chain.append(result)
-        self.fernet = AES.new(result,AES.MODE_ECB)
+        chain.append(cipher)
+        result = hashlib.md5(str(chain).encode())
+        strres = str(result).ljust(32)[:32]
+        chain.append(strres)
+        print(str(strres))
 
     def encrypt(self, data):
-        return base64.urlsafe_b64decode(self.fernet.encrypt(data))
+        global strres
+        global chain
+        global cipher
+        print('Encrypt')
+        padded = pad(data, AES.block_size, style='pkcs7')
+        IV = Random.new().read(AES.block_size)
+        self.enc = AES.new(strres, AES.MODE_CBC, IV)
+        encr = base64.urlsafe_b64encode(IV + self.enc.encrypt(padded))
+        return encr
 
     def decrypt(self, data):
-        return self.fernet.decrypt(base64.urlsafe_b64encode(data))
+        global strres
+        global chain
+        global cipher
+        print('Decrypt')
+        deco = base64.urlsafe_b64decode(data)
+        IV = deco[:AES.block_size]
+        self.dec = AES.new(strres, AES.MODE_CBC, IV)
+        dec = self.dec.decrypt(deco[AES.block_size:])
+        dat = unpad(dec, AES.block_size, style='pkcs7')
+        print(dat)
+        return dat
 
 class Host:
 
@@ -148,7 +170,8 @@ class Host:
             self.log.debug('auth packet from %s', packet.peer)
             try:
                 plaintext = self.cipher.decrypt(packet.payload.payload_enc)
-            except:
+            except exception as e:
+                print(e)
                 self.log.warn('could not decrypt auth packet')
                 return
 
