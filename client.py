@@ -59,20 +59,15 @@ class FernetEncryption:
     def __init__(self, key):
         print('Crypto Init')
         global cipher
-        cipher = key
         global strres
         global chain
-        chain.append(cipher)
+        chain.append(key)
         result = hashlib.md5(str(chain).encode())
         strres = str(result).ljust(32)[:32]
         chain.append(strres)
-        print(str(strres))
 
     def encrypt(self, data):
         global strres
-        global chain
-        global cipher
-        print('Encrypt')
         padded = pad(data, AES.block_size, style='pkcs7')
         IV = Random.new().read(AES.block_size)
         self.enc = AES.new(strres, AES.MODE_CBC, IV)
@@ -81,15 +76,11 @@ class FernetEncryption:
 
     def decrypt(self, data):
         global strres
-        global chain
-        global cipher
-        print('Decrypt')
         deco = base64.urlsafe_b64decode(data)
         IV = deco[:AES.block_size]
         self.dec = AES.new(strres, AES.MODE_CBC, IV)
         dec = self.dec.decrypt(deco[AES.block_size:])
         dat = unpad(dec, AES.block_size, style='pkcs7')
-        print(dat)
         return dat
 
 class Host:
