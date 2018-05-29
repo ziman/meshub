@@ -61,10 +61,16 @@ class FernetEncryption:
         global cipher
         global strres
         global chain
-        chain.append(key)
+        seed = hashlib.md5(str(key).encode())
+        dig0 = seed.hexdigest()
+        chain.append(dig0)
         result = hashlib.md5(str(chain).encode())
-        strres = str(result).ljust(32)[:32]
+        dig1 = result.hexdigest()
+        strres = str(dig1).ljust(32)[:32]
         chain.append(strres)
+        print(chain)
+        print('        ')
+        print(strres)
 
     def encrypt(self, data):
         global strres
