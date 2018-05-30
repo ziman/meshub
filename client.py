@@ -16,9 +16,11 @@ import datetime
 import subprocess
 import collections
 import configparser
-from cryptography.fernet import Fernet, InvalidToken
-
+import hashlib
 import protocol
+from Crypto.Cipher import AES
+from Crypto import Random
+from padding import pad, unpad
 
 TUNSETIFF = 0x400454ca
 IFF_TUN   = 0x0001
@@ -30,7 +32,10 @@ PROTO_UDP = 0x11
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
-
+global chain
+chain = []
+global act
+act = True
 def str_mac(addr):
     return ':'.join('%02x' % x for x in addr)
 
@@ -52,14 +57,50 @@ class NullEncryption:
         return data
 
 class FernetEncryption:
+    global chain
     def __init__(self, key):
-        self.fernet = Fernet(key)
-
+        print('Crypto Init')
+        global cipher
+        global strres
+        cipher = key
     def encrypt(self, data):
-        return base64.urlsafe_b64decode(self.fernet.encrypt(data))
+        global strres
+        global cipher
+        global chain
+        seed = hashlib.md5(str(cipher).encode())
+        dig0 = seed.hexdigest()
+        chain.append(dig0)
+        result = hashlib.md5(str(chain).encode())
+        dig1 = result.hexdigest()
+        strres = str(dig1).ljust(32)[:32]
+        chain.append(strres)
+        print('Encrypt')
+        print(strres)
+        padded = pad(data, AES.block_size, style='pkcs7')
+        IV = Random.new().read(AES.block_size)
+        self.enc = AES.new(strres, AES.MODE_CBC, IV)
+        encr = base64.urlsafe_b64encode(IV + self.enc.encrypt(padded))
+        return encr
 
     def decrypt(self, data):
-        return self.fernet.decrypt(base64.urlsafe_b64encode(data))
+        global cipher
+        global strres
+        global chain
+        seed = hashlib.md5(str(cipher).encode())
+        dig0 = seed.hexdigest()
+        chain.append(dig0)
+        result = hashlib.md5(str(chain).encode())
+        dig1 = result.hexdigest()
+        strres = str(dig1).ljust(32)[:32]
+        chain.append(strres)
+        print('Decrypt')
+        print(strres)
+        deco = base64.urlsafe_b64decode(data)
+        IV = deco[:AES.block_size]
+        self.dec = AES.new(strres, AES.MODE_CBC, IV)
+        dec = self.dec.decrypt(deco[AES.block_size:])
+        dat = unpad(dec, AES.block_size, style='pkcs7')
+        return dat
 
 class Host:
 
@@ -107,16 +148,17 @@ class Host:
         #self.log.debug('state = %s' % self.state)
         #self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
-
-        if packet_payload.session_id != self.session_id:
+        global act
+        if (packet_payload.session_id != self.session_id) & (act != False):
             self.log.debug('connection needs refreshing, sending auth packet...')
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
+            act = False
         else:
             #self.log.debug('just iterating')
             # either already connected or a re-try of initial connection
             # just make sure everything is taken care of
-            self.iteration()
+            print('Waititng on the world to change...')
 
     def process_packet(self, packet):
         self.seen_packet()
@@ -139,7 +181,8 @@ class Host:
             self.log.debug('auth packet from %s', packet.peer)
             try:
                 plaintext = self.cipher.decrypt(packet.payload.payload_enc)
-            except InvalidToken:
+            except exception as e:
+                print(e)
                 self.log.warn('could not decrypt auth packet')
                 return
 
@@ -197,7 +240,7 @@ class Host:
             if packet.payload.is_encrypted:
                 try:
                     plaintext = self.cipher.decrypt(packet.payload.payload)
-                except InvalidToken:
+                except:
                     self.log.warn('could not decrypt data packet')
                     return
             else:
@@ -248,7 +291,6 @@ class Host:
         hostname = self.config['vpn'].get('hostname', fallback='client')
         ipv4_address, _prefix_length = get_address(self.config, 'ipv4')
         ipv6_address, _prefix_length = get_address(self.config, 'ipv6')
-
         payload = json.dumps({
             'version': protocol.VERSION,
             'hostname': hostname,
@@ -409,8 +451,8 @@ class Client:
         #log.debug('packet: %s' % (packet,))
         try:
             self.process_packet(packet)
-        except InvalidToken as e:
-            self.log.warn('could not authenticate packet: %s' % e)
+        except:
+            self.log.warn('could not authenticate packet: %s')
 
     def maintenance(self):
         self.purge_dead_hosts()
