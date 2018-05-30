@@ -34,6 +34,8 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 global chain
 chain = []
+global act
+act = True
 def str_mac(addr):
     return ':'.join('%02x' % x for x in addr)
 
@@ -60,20 +62,20 @@ class FernetEncryption:
         print('Crypto Init')
         global cipher
         global strres
+        cipher = key
+    def encrypt(self, data):
+        global strres
+        global cipher
         global chain
-        seed = hashlib.md5(str(key).encode())
+        seed = hashlib.md5(str(cipher).encode())
         dig0 = seed.hexdigest()
         chain.append(dig0)
         result = hashlib.md5(str(chain).encode())
         dig1 = result.hexdigest()
         strres = str(dig1).ljust(32)[:32]
         chain.append(strres)
-        print(chain)
-        print('        ')
+        print('Encrypt')
         print(strres)
-
-    def encrypt(self, data):
-        global strres
         padded = pad(data, AES.block_size, style='pkcs7')
         IV = Random.new().read(AES.block_size)
         self.enc = AES.new(strres, AES.MODE_CBC, IV)
@@ -81,7 +83,18 @@ class FernetEncryption:
         return encr
 
     def decrypt(self, data):
+        global cipher
         global strres
+        global chain
+        seed = hashlib.md5(str(cipher).encode())
+        dig0 = seed.hexdigest()
+        chain.append(dig0)
+        result = hashlib.md5(str(chain).encode())
+        dig1 = result.hexdigest()
+        strres = str(dig1).ljust(32)[:32]
+        chain.append(strres)
+        print('Decrypt')
+        print(strres)
         deco = base64.urlsafe_b64decode(data)
         IV = deco[:AES.block_size]
         self.dec = AES.new(strres, AES.MODE_CBC, IV)
@@ -135,16 +148,17 @@ class Host:
         #self.log.debug('state = %s' % self.state)
         #self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
-
-        if packet_payload.session_id != self.session_id:
+        global act
+        if (packet_payload.session_id != self.session_id) & (act != False):
             self.log.debug('connection needs refreshing, sending auth packet...')
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
+            act = False
         else:
             #self.log.debug('just iterating')
             # either already connected or a re-try of initial connection
             # just make sure everything is taken care of
-            self.iteration()
+            print('Waititng on the world to change...')
 
     def process_packet(self, packet):
         self.seen_packet()
@@ -277,7 +291,6 @@ class Host:
         hostname = self.config['vpn'].get('hostname', fallback='client')
         ipv4_address, _prefix_length = get_address(self.config, 'ipv4')
         ipv6_address, _prefix_length = get_address(self.config, 'ipv6')
-
         payload = json.dumps({
             'version': protocol.VERSION,
             'hostname': hostname,
