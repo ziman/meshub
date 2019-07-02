@@ -68,6 +68,21 @@ Other mesh VPNs worth checking out:
 	* PSK or CA
 	* does not seem to create everyone-to-everyone mesh automatically
 
+## Troubleshooting
+
+* Computers won't connect. (Or only some of them do.)
+	* Some networks require frequent pings to keep STUN up.
+	  Try using the value `5` (seconds) for the following configuration options:
+	  `select_interval_sec`, `advert_interval_sec`, `maintenance_interval_sec`,
+	  `ping_interval_sec`.
+
+	  More details: As long as all client-to-client connections are working,
+	  the client-to-hub connections are unused (they are used only to establish
+	  client-to-client connections). If client-to-hub breaks because
+	  long ping intervals broke STUN, you won't notice until eventually one
+	  client-to-client connection breaks and cannot be reestablished anymore
+	  due to defunct client-to-hub communication.
+
 ## Dependencies
 
 * Python 3
