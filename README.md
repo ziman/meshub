@@ -79,7 +79,7 @@ Other mesh VPNs worth checking out:
 	  More details: As long as all client-to-client connections are working,
 	  the client-to-hub connections are unused (they are used only to establish
 	  client-to-client connections). If client-to-hub breaks because
-	  long ping intervals broke STUN, you won't notice until eventually one
+	  long ping intervals broke STUN, you won't notice until eventually a
 	  client-to-client connection breaks and cannot be reestablished anymore
 	  due to defunct client-to-hub communication.
 
