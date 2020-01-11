@@ -95,6 +95,7 @@ Other mesh VPNs worth checking out:
 
 ## Wishlist/TODO
 
+* MTU discovery / propagation of the corresponding ICMP messages into the tunnel
 * assymetric crypto
 * a status command that would print all edges and their detailed diagnostics
     * generally a RPC
