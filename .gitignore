@@ -1,3 +1,4 @@
 old-git
 client*.cfg
 /.mypy_cache/
+/.ts-*
