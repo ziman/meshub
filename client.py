@@ -81,10 +81,10 @@ class Host:
 
     def __init__(
         self,
-        client : Client,
+        client : 'Client',
         config : configparser.ConfigParser,
         sock : socket.socket,
-        tun : Tun,
+        tun : 'Tun',
         routes : Dict[bytes, 'Host'],
         peer : protocol.Peer,
     ):
