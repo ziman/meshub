@@ -272,11 +272,12 @@ class Host:
         #self.log.debug('iteration, state=%s' % self.state)
 
         if self.state == Host.STATE_STUN:
-            for _ in range(4):
+            for _ in range(8):
                 self.ping()
 
         elif self.state == Host.STATE_AUTH:
-            self.send_auth_packet()
+            for _ in range(8):
+                self.send_auth_packet()
 
         elif self.state == Host.STATE_CONNECTED:
             if (datetime.datetime.now() - max(self.ts_last_ping, self.ts_last_packet)).total_seconds() > self.ping_interval:
@@ -343,6 +344,7 @@ class Client:
 
 
     def advertise_hub(self):
+        log.debug('advertising...')
         protocol.sendto(
             self.sock,
             self.peer_hub,
