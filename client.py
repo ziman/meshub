@@ -379,7 +379,7 @@ class Client:
 
 
     def advertise_hub(self) -> None:
-        log.debug('advertising...')
+        #log.debug('advertising...')
         protocol.sendto(
             self.sock,
             self.peer_hub,
