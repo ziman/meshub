@@ -33,6 +33,7 @@ $ ./hub.py [-a address=0.0.0.0] [-p port=3731]
 * No special privileges needed.
 * Almost no functionality.
 * Not part of the network -- it just mediates NAT traversal.
+* Never relays data traffic.
 * Needs a public IP address.
 
 ### Client
