@@ -1,6 +1,7 @@
 import struct
 import socket
 import collections
+from typing import NamedTuple, Tuple, Union, Optional
 
 VERSION = 4
 
@@ -13,12 +14,40 @@ PACKET_C2C_PONG = 0x05
 PACKET_C2C_AUTH = 0x06
 PACKET_C2C_DATA = 0x08
 
-Packet_rx = collections.namedtuple('Packet_rx', 'peer magic payload')
-Packet_h2c = collections.namedtuple('Packet_h2c', 'src_addr src_port protocol_version session_id')
-Packet_c2h = collections.namedtuple('Packet_c2h', 'protocol_version session_id')
-Packet_ping = collections.namedtuple('Packet_ping', 'payload')
-Packet_auth_enc = collections.namedtuple('Packet_auth_enc', 'payload_enc')
-Packet_data = collections.namedtuple('Packet_data', 'is_encrypted payload')
+Peer = Tuple[str, int]
+
+class Packet_h2c(NamedTuple):
+    src_addr : str
+    src_port : int
+    protocol_version : int
+    session_id : str
+
+class Packet_c2h(NamedTuple):
+    protocol_version : int
+    session_id : str
+
+class Packet_ping(NamedTuple):
+    payload : bytes
+
+class Packet_auth_enc(NamedTuple):
+    payload_enc : bytes
+
+class Packet_data(NamedTuple):
+    is_encrypted : bool
+    payload : bytes
+
+Packet = Union[
+    Packet_h2c,
+    Packet_c2h,
+    Packet_ping,
+    Packet_auth_enc,
+    Packet_data
+]
+
+class Packet_rx(NamedTuple):
+    peer : Peer
+    magic : int
+    payload : Optional[Packet]
 
 class MalformedPacket(Exception):
     pass
@@ -69,6 +98,7 @@ def receive(sock):
         data, peer = sock.recvfrom(MAX_PACKET_SIZE)
         magic, data = data[0], data[1:]
 
+        payload : Optional[Packet]
         if magic == PACKET_C2H:
             protocol_version = data[0]
             session_id, = struct.unpack('>L', data[1:5])

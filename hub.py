@@ -8,6 +8,7 @@ import argparse
 import logging
 import datetime
 import collections
+from typing import Dict
 
 import protocol
 
@@ -41,7 +42,7 @@ def broadcast_peer(sock, src_peer, packet, hosts):
 
 def main_loop(args, sock):
     # hosts map (addr,port) -> ts_last_packet
-    hosts = collections.defaultdict(dict)
+    hosts : Dict[protocol.Peer, datetime.datetime] = {}
 
     while True:
         try:
