@@ -17,6 +17,7 @@ import subprocess
 import collections
 import configparser
 from cryptography.fernet import Fernet, InvalidToken
+from typing import Union
 
 import protocol
 
@@ -80,6 +81,7 @@ class Host:
 
         self.ping_interval = config['vpn'].getfloat('ping_interval_sec', 30)
 
+        self.cipher : Union[FernetEncryption, NullEncryption]
         enc_scheme = config['encryption'].get('scheme', fallback='fernet')
         if enc_scheme == 'fernet':
             self.cipher = FernetEncryption(config['encryption']['psk'])
@@ -412,7 +414,7 @@ class Client:
         try:
             self.process_packet(packet)
         except InvalidToken as e:
-            self.log.warn('could not authenticate packet: %s' % e)
+            log.warn('could not authenticate packet: %s' % e)
 
     def maintenance(self):
         self.purge_dead_hosts()

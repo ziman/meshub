@@ -20,11 +20,11 @@ class Packet_h2c(NamedTuple):
     src_addr : str
     src_port : int
     protocol_version : int
-    session_id : str
+    session_id : int
 
 class Packet_c2h(NamedTuple):
     protocol_version : int
-    session_id : str
+    session_id : int
 
 class Packet_ping(NamedTuple):
     payload : bytes
