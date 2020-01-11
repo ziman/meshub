@@ -8,7 +8,7 @@ import argparse
 import logging
 import datetime
 import collections
-from typing import Dict
+from typing import Dict, Any, Optional
 
 import protocol
 
@@ -18,10 +18,15 @@ HOST_ADVERT_TIMEOUT_SEC = 60
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
-def broadcast_peer(sock, src_peer, packet, hosts):
+def broadcast_peer(
+    sock : socket.socket,
+    src_peer : protocol.Peer,
+    packet : protocol.Packet_c2h,
+    hosts : Dict[protocol.Peer, datetime.datetime],
+) -> None:
     log.debug('broadcasting: %s:%d' % src_peer)
 
-    data = protocol.to_bytes(protocol.PACKET_H2C, protocol.Packet_h2c(
+    data = protocol.to_bytes(protocol.Magic.H2C, protocol.Packet_h2c(
         src_addr=src_peer[0],
         src_port=src_peer[1],
         protocol_version=packet.protocol_version,
@@ -40,7 +45,7 @@ def broadcast_peer(sock, src_peer, packet, hosts):
             log.debug('  -> %s:%d' % peer)
             sock.sendto(data, peer)
 
-def main_loop(args, sock):
+def main_loop(args : Any, sock : socket.socket) -> None:
     # hosts map (addr,port) -> ts_last_packet
     hosts : Dict[protocol.Peer, datetime.datetime] = {}
 
@@ -51,14 +56,19 @@ def main_loop(args, sock):
             log.debug('skipping malformed packet: %s' % e)
             continue
 
-        if packet.magic != protocol.PACKET_C2H:
+        if packet.magic is not protocol.Magic.C2H:
             log.debug('non-c2h packet, ignoring')
             continue
 
         hosts[packet.peer] = datetime.datetime.now()
-        broadcast_peer(sock, packet.peer, packet.payload, hosts)
 
-def main(args):
+        c2h = packet.payload
+        assert c2h is not None
+        assert isinstance(c2h, protocol.Packet_c2h)
+
+        broadcast_peer(sock, packet.peer, c2h, hosts)
+
+def main(args : Any) -> None:
     log.info('starting server at [%s]:%s' % (args.addr, args.port))
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.addr, args.port))
