@@ -98,6 +98,7 @@ Other mesh VPNs worth checking out:
 
 * MTU discovery / propagation of the corresponding ICMP messages into the tunnel
 * assymetric crypto
+* replay resilience
 * a status command that would print all edges and their detailed diagnostics
     * generally a RPC
 * ICMP inside VPN
