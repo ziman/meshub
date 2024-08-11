@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import json
 import time
 import fcntl
@@ -14,17 +13,18 @@ import logging
 import argparse
 import datetime
 import subprocess
-import collections
 import configparser
 from enum import Enum
 from cryptography.fernet import Fernet, InvalidToken
-from typing import Union, List, Any, Tuple, Optional, Dict
+from typing import Optional
 
 import protocol
 
+Args = argparse.Namespace
+
 TUNSETIFF = 0x400454ca
-IFF_TUN   = 0x0001
-IFF_TAP   = 0x0002
+IFF_TUN   = 0x0001  # noqa: E221
+IFF_TAP   = 0x0002  # noqa: E221
 IFF_NO_PI = 0x1000
 
 PROTO_TCP = 0x06
@@ -39,7 +39,7 @@ def str_mac(addr : bytes) -> str:
 def get_address(
     config : configparser.ConfigParser,
     proto : str,
-) -> Tuple[Optional[str], Optional[int]]:
+) -> tuple[Optional[str], Optional[int]]:
     address_s = config['tun'].get(proto + '_address')
     if not address_s:
         return None, None
@@ -85,7 +85,7 @@ class Host:
         config : configparser.ConfigParser,
         sock : socket.socket,
         tun : 'Tun',
-        routes : Dict[bytes, 'Host'],
+        routes : dict[bytes, 'Host'],
         peer : protocol.Peer,
     ):
         self.config = config
@@ -125,8 +125,8 @@ class Host:
         self.ts_last_packet = datetime.datetime.now()
 
     def process_advertisement(self, packet_payload : protocol.Packet_h2c) -> None:
-        #self.log.debug('state = %s' % self.state)
-        #self.log.debug('advertisement from %s:%d' % self.peer)
+        # self.log.debug('state = %s' % self.state)
+        # self.log.debug('advertisement from %s:%d' % self.peer)
         self.seen_packet()
 
         if packet_payload.session_id != self.session_id:
@@ -134,7 +134,7 @@ class Host:
             # remote host has restarted, needs active connection re-establishment
             self.send_auth_packet()
         else:
-            #self.log.debug('just iterating')
+            # self.log.debug('just iterating')
             # either already connected or a re-try of initial connection
             # just make sure everything is taken care of
             self.iteration()
@@ -143,7 +143,7 @@ class Host:
         self.seen_packet()
 
         if packet.magic is protocol.Magic.C2C_PING:
-            #self.log.debug('PING received')
+            # self.log.debug('PING received')
 
             self.send_packet(
                 protocol.Magic.C2C_PONG,
@@ -190,15 +190,15 @@ class Host:
 
             self.name = doc['hostname']
             self.ipv4_address = doc['address'].get('ipv4') \
-                    and socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
+                and socket.inet_pton(socket.AF_INET, doc['address'].get('ipv4'))
             self.ipv6_address = doc['address'].get('ipv6') \
-                    and socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
+                and socket.inet_pton(socket.AF_INET6, doc['address'].get('ipv6'))
 
             if (self.state is not Host.State.CONNECTED) or (doc['session_id'] != self.session_id):
                 # other party's details updated, switch to State.CONNECTED
                 self.state = Host.State.CONNECTED
                 self.session_id = doc['session_id']
-            
+
                 if not self.client.is_tap:
                     if self.ipv4_address:
                         self.routes[self.ipv4_address] = self
@@ -233,15 +233,15 @@ class Host:
             # see process_tap_packet() for packet format reference
             if self.client.is_tap:
                 addr_src = plaintext[6:12]
-                #self.log.debug('SRC address ' + str_mac(addr_src))
+                # self.log.debug('SRC address ' + str_mac(addr_src))
                 self.client.routes[addr_src] = self
 
-            #log.debug('writing to interface: %s', str_mac(plaintext))
+            # log.debug('writing to interface: %s', str_mac(plaintext))
             self.tun.write(plaintext)
 
         elif packet.magic is protocol.Magic.H2C:
             assert isinstance(packet.payload, protocol.Packet_h2c)
-            #log.debug('LAN broadcast received from %s', packet.peer)
+            # log.debug('LAN broadcast received from %s', packet.peer)
             self.process_advertisement(packet.payload)
 
         else:
@@ -259,7 +259,8 @@ class Host:
         self.ts_last_ping = datetime.datetime.now()
 
     def send_data_packet(self, data : bytes, encrypt : bool = True) -> None:
-        self.send_packet(protocol.Magic.C2C_DATA,
+        self.send_packet(
+            protocol.Magic.C2C_DATA,
             protocol.Packet_data(
                 is_encrypted=encrypt,
                 payload=
@@ -296,7 +297,7 @@ class Host:
         )
 
     def iteration(self) -> None:
-        #self.log.debug('iteration, state=%s' % self.state)
+        # self.log.debug('iteration, state=%s' % self.state)
 
         if self.state == Host.State.STUN:
             for _ in range(8):
@@ -353,10 +354,10 @@ class Client:
         peer_hub : protocol.Peer
     ):
         self.config = config
-        self.sock    = sock
+        self.sock = sock
         self.peer_hub = peer_hub
-        self.hosts_by_peer : Dict[protocol.Peer, Host] = dict()
-        self.routes : Dict[bytes, Host] = dict()  # vpn address (ipv4 or ipv6) -> Host
+        self.hosts_by_peer : dict[protocol.Peer, Host] = dict()
+        self.routes : dict[bytes, Host] = dict()  # vpn address (ipv4 or ipv6) -> Host
         self.tun = tun
         self.is_tap = (config['tun'].get('type', 'tun') == 'tap')
         self.ts_last_advert = datetime.datetime.now()
@@ -377,9 +378,8 @@ class Client:
             if port_s.strip():
                 self.unencrypted_udp_ports.add(int(port_s.strip()))
 
-
     def advertise_hub(self) -> None:
-        #log.debug('advertising...')
+        # log.debug('advertising...')
         protocol.sendto(
             self.sock,
             self.peer_hub,
@@ -444,7 +444,7 @@ class Client:
                 del self.hosts_by_peer[host.peer]
 
     def process_udp_packet(self, packet : protocol.Packet_rx) -> None:
-        #log.debug('packet: %s' % (packet,))
+        # log.debug('packet: %s' % (packet,))
         try:
             self.process_packet(packet)
         except InvalidToken as e:
@@ -462,17 +462,17 @@ class Client:
         addr_dst = packet[:6]
         host = self.routes.get(addr_dst)
         if host:
-            #log.debug('TAP packet for %s goes to %s', str_mac(addr_dst), host)
+            # log.debug('TAP packet for %s goes to %s', str_mac(addr_dst), host)
             host.send_data_packet(packet, encrypt=True)
         else:
             # dest unknown, broadcast it
-            #log.debug('broadcast TAP packet for %s', str_mac(addr_dst))
+            # log.debug('broadcast TAP packet for %s', str_mac(addr_dst))
             for host in self.hosts_by_peer.values():
-                #log.debug('sending it to %s', host)
+                # log.debug('sending it to %s', host)
                 host.send_data_packet(packet, encrypt=True)
 
     def process_tun_packet(self, packet : bytes) -> None:
-        #log.debug('tun packet: %s' % packet)
+        # log.debug('tun packet: %s' % packet)
 
         ip_protocol = None
         src_port, dst_port = None, None
@@ -480,7 +480,7 @@ class Client:
         version = (packet[0] >> 4) & 0x0F  # IP version
         if version == 4:
             addr_dst = packet[16:20]
-            #addr_s = socket.inet_ntop(socket.AF_INET, addr_dst)
+            # addr_s = socket.inet_ntop(socket.AF_INET, addr_dst)
 
             header_length = 4 * (packet[0] & 0x0F)  # in bytes
             ip_protocol = packet[9]
@@ -489,7 +489,7 @@ class Client:
                 src_port, dst_port = struct.unpack('>HH', packet[header_length:header_length+4])
         elif version == 6:
             addr_dst = packet[24:40]
-            #addr_s = socket.inet_ntop(socket.AF_INET6, addr_dst)
+            # addr_s = socket.inet_ntop(socket.AF_INET6, addr_dst)
 
             ip_protocol = packet[6]
             if ip_protocol in (PROTO_TCP, PROTO_UDP):
@@ -497,20 +497,20 @@ class Client:
         else:
             log.warn('unknown IP version: 0x%02x' % version)
             return
-        
+
         host = self.routes.get(addr_dst)
-        #log.debug('routing packet for %s to %s' % (addr_s, host))
+        # log.debug('routing packet for %s to %s' % (addr_s, host))
         if host:
             if ip_protocol == PROTO_TCP \
                     and (
-                        (src_port in self.unencrypted_tcp_ports) \
+                        (src_port in self.unencrypted_tcp_ports)
                         or (dst_port in self.unencrypted_tcp_ports)
                     ):
                 host.send_data_packet(packet, encrypt=False)
 
             elif ip_protocol == PROTO_UDP \
                     and (
-                        (src_port in self.unencrypted_udp_ports) \
+                        (src_port in self.unencrypted_udp_ports)
                         or (dst_port in self.unencrypted_udp_ports)
                     ):
                 host.send_data_packet(packet, encrypt=False)
@@ -609,7 +609,7 @@ def setup_tun(config : configparser.ConfigParser) -> Tun:
 
     return tun
 
-def main(args : Any) -> None:
+def main(args : Args) -> None:
     config = configparser.ConfigParser()
     config.read(args.config)
     if 'vpn' not in config:
