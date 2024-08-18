@@ -616,7 +616,7 @@ def main(args : Args) -> None:
 
         root = logging.getLogger(None)
         root.addHandler(hnd)
-        root.setLevel(logging.DEBUG)
+        root.setLevel(logging.INFO)
     else:
         logging.basicConfig(level=logging.DEBUG)
 
