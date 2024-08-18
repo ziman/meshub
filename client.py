@@ -9,7 +9,6 @@ import socket
 import struct
 import select
 import random
-import syslog
 import logging
 import logging.handlers
 import argparse
@@ -612,9 +611,11 @@ def setup_tun(config : configparser.ConfigParser) -> Tun:
 
 def main(args : Args) -> None:
     if args.syslog:
-        syslog.openlog('meshub')
+        hnd = logging.handlers.SysLogHandler('/dev/log')
+        hnd.ident = 'meshub: '
+
         root = logging.getLogger(None)
-        root.addHandler(logging.handlers.SysLogHandler('/dev/log'))
+        root.addHandler(hnd)
         root.setLevel(logging.DEBUG)
     else:
         logging.basicConfig(level=logging.DEBUG)
