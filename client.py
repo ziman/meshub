@@ -31,7 +31,7 @@ IFF_NO_PI = 0x1000
 PROTO_TCP = 0x06
 PROTO_UDP = 0x11
 
-log = logging.getLogger(__name__)
+log = logging.getLogger('meshub')
 
 def str_mac(addr : bytes) -> str:
     return ':'.join('%02x' % x for x in addr)
@@ -610,14 +610,12 @@ def setup_tun(config : configparser.ConfigParser) -> Tun:
     return tun
 
 def main(args : Args) -> None:
-    logging.basicConfig(level=logging.DEBUG)
     if args.syslog:
         root = logging.getLogger(None)
-        for hnd in list(root.handlers):
-            root.removeHandler(hnd)
-        root.addHandler(
-            logging.handlers.SysLogHandler('/dev/log')
-        )
+        root.addHandler(logging.handlers.SysLogHandler('/dev/log'))
+        root.setLevel(logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.DEBUG)
 
     config = configparser.ConfigParser()
     config.read(args.config)
