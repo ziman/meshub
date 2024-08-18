@@ -10,6 +10,7 @@ import struct
 import select
 import random
 import logging
+import logging.handlers
 import argparse
 import datetime
 import subprocess
@@ -30,7 +31,6 @@ IFF_NO_PI = 0x1000
 PROTO_TCP = 0x06
 PROTO_UDP = 0x11
 
-logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 def str_mac(addr : bytes) -> str:
@@ -610,6 +610,15 @@ def setup_tun(config : configparser.ConfigParser) -> Tun:
     return tun
 
 def main(args : Args) -> None:
+    logging.basicConfig(level=logging.DEBUG)
+    if args.syslog:
+        root = logging.getLogger(None)
+        for hnd in list(root.handlers):
+            root.removeHandler(hnd)
+        root.addHandler(
+            logging.handlers.SysLogHandler('/dev/log')
+        )
+
     config = configparser.ConfigParser()
     config.read(args.config)
     if 'vpn' not in config:
@@ -652,4 +661,5 @@ def main(args : Args) -> None:
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('config')
+    ap.add_argument('--syslog', action='store_true')
     main(ap.parse_args())
