@@ -74,6 +74,8 @@ Other mesh VPNs worth checking out:
       depends on the central coordinating node.
       In contrast, the meshub hub is just a dumb repeater
       and can run on any old untrusted machine.
+      It's up to the clients to use PSK-based encryption.
+      (Beware that the unencrypted port hack makes things vulnerable.)
 
 ## Troubleshooting
 
