@@ -69,6 +69,10 @@ Other mesh VPNs worth checking out:
 * [freelan](https://freelan.org/)
 	* PSK or CA
 	* does not seem to create everyone-to-everyone mesh automatically
+* [tailscale](https://tailscale.com/)
+    * In Tailscale, the security of the network depends on the central
+      coordinating node. The meshub hub is just a dumb repeater
+      and can run on any old untrusted machine.
 
 ## Troubleshooting
 
