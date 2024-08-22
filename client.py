@@ -226,6 +226,9 @@ class Host:
                 except InvalidToken:
                     self.log.warn('could not decrypt data packet')
                     return
+            elif self.client.reject_unencrypted:
+                log.warn('rejecting unencrypted payload')
+                return
             else:
                 plaintext = packet.payload.payload
 
@@ -377,6 +380,10 @@ class Client:
         for port_s in config['encryption'].get('unencrypted_udp_ports', '').split(','):
             if port_s.strip():
                 self.unencrypted_udp_ports.add(int(port_s.strip()))
+
+        self.reject_unencrypted = \
+            (not self.unencrypted_tcp_ports) \
+            and (not self.unencrypted_udp_ports)
 
     def advertise_hub(self) -> None:
         # log.debug('advertising...')
