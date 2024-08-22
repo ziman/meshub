@@ -105,7 +105,7 @@ class Host:
         if enc_scheme == 'fernet':
             self.cipher = FernetEncryption(config['encryption']['psk'].encode('ascii'))
         elif enc_scheme == 'null':
-            log.warn('using null encryption scheme')
+            log.warning('using null encryption scheme')
             self.cipher = NullEncryption()
         else:
             raise Exception('unknown encryption scheme: %s' % enc_scheme)
@@ -165,14 +165,14 @@ class Host:
             try:
                 plaintext = self.cipher.decrypt(packet.payload.payload_enc)
             except InvalidToken:
-                self.log.warn('could not decrypt auth packet')
+                self.log.warning('could not decrypt auth packet')
                 return
 
             doc = json.loads(plaintext.decode('ascii'))
 
             proto_version = doc.get('version', 0)
             if proto_version != protocol.VERSION:
-                log.warn('rejecting AUTH: wrong proto version from %s (got %d, expected %d)' % (
+                log.warning('rejecting AUTH: wrong proto version from %s (got %d, expected %d)' % (
                     doc.get('hostname', str(self)),
                     proto_version,
                     protocol.VERSION,
@@ -181,7 +181,7 @@ class Host:
 
             expected_mode = 'tap' if self.client.is_tap else 'tun'
             if doc.get('mode') != expected_mode:
-                log.warn(
+                log.warning(
                     'rejecting AUTH: wrong mode %s (expected %s)',
                     doc.get('mode'),
                     expected_mode
@@ -224,10 +224,10 @@ class Host:
                 try:
                     plaintext = self.cipher.decrypt(packet.payload.payload)
                 except InvalidToken:
-                    self.log.warn('could not decrypt data packet')
+                    self.log.warning('could not decrypt data packet')
                     return
             elif self.client.reject_unencrypted:
-                log.warn('rejecting unencrypted payload')
+                log.warning('rejecting unencrypted payload')
                 return
             else:
                 plaintext = packet.payload.payload
@@ -248,7 +248,7 @@ class Host:
             self.process_advertisement(packet.payload)
 
         else:
-            log.warn('unknown packet magic: %s' % packet.magic)
+            log.warning('unknown packet magic: %s' % packet.magic)
 
     def send_packet(self, magic : protocol.Magic, packet : protocol.Packet) -> None:
         protocol.sendto(self.sock, self.peer, magic, packet)
@@ -455,7 +455,7 @@ class Client:
         try:
             self.process_packet(packet)
         except InvalidToken as e:
-            log.warn('could not authenticate packet: %s' % e)
+            log.warning('could not authenticate packet: %s' % e)
 
     def maintenance(self) -> None:
         self.purge_dead_hosts()
@@ -502,7 +502,7 @@ class Client:
             if ip_protocol in (PROTO_TCP, PROTO_UDP):
                 src_port, dst_port = struct.unpack('>HH', packet[40:44])
         else:
-            log.warn('unknown IP version: 0x%02x' % version)
+            log.warning('unknown IP version: 0x%02x' % version)
             return
 
         host = self.routes.get(addr_dst)
